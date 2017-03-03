@@ -1,0 +1,33 @@
+{0 Down {%html: <span class="version">%%VERSION%%</span>%}}
+
+Down is an unintrusive user experience upgrade for the [ocaml]
+toplevel (REPL).
+
+Simply load the zero dependency [Down] library in the toplevel and you
+get line edition, history, identifier completion and session support.
+
+Consult the {{!page-manual}manual}.
+
+{1:quick_start Quick start}
+
+Simply run [ocaml] and load the library:
+
+{v
+# #use "down.top";;
+Down loaded. Tab complete Down.help () for more info.
+# List.con^t
+  List.cons : 'a -> 'a list -> 'a list
+  List.concat : 'a list list -> 'a list
+# List.con
+v}
+
+You can add this [#use] invocation to your [~/.ocamlinit] file.
+
+For [ocamlnat] you will likely have to invoke it with [-noinit] and
+you must [#use "down.nattop"].
+
+{1:api API}
+
+{!modules:
+Down
+}

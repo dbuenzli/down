@@ -1,0 +1,68 @@
+{0 Down manual}
+
+Down is an unintrusive user experience upgrade for the [ocaml]
+toplevel (REPL).
+
+{1:setup Setup}
+
+To use Down in [ocaml] simply issue this phrase:
+{v
+# #use "down.top" (* or "down.nattop" for the native toplevel *)
+v}
+
+You can add this line to your [~/.ocamlinit] file.
+
+The impact of using [Down] on the toplevel environment should be
+minimal: it loads the library [down.cma], makes the {{!Down}Down
+API} accessible by including its library directory and sets standard
+input in raw mode whenever it asks for user input.
+
+This is it.
+
+{1:input Input}
+
+[Down] provides classical readline capability. There is not much to be
+said about it and should be natural if you are used to command line
+interfaces. A summary of key bindings is available by invoking:
+{[
+# Down.help ()
+]}
+
+{1:input_history Input history}
+
+To navigate input history use the up and down arrows of your keyboard.
+
+History is stored accross sessions in
+[~/.config/ocaml/history.ml]. This is a plain text file where history
+entries are separated by [(**)] lines. It may not be a syntactically
+valid OCaml file since history includes lines that did not parse.
+
+The {!Down.History} module has a few functions to manipulate history:
+{[
+# Down.History.edit () (* edit the history in your editor. *)
+# Down.History.clear () (* clear your history. *)
+]}
+
+{1:completion Completion}
+
+At the moment completion is provided by
+{{:https://github.com/OCamlPro/ocp-index}[ocp-index]}.
+
+The support is a bit crude, it is planned to improve it in the
+future. It is context unaware and only library symbols are completed
+and this regardless whether those are loaded or not. In particular
+user defined symbols in the toplevel are not yet completable.
+
+{1:sessions Sessions}
+
+Sessions support is TODO.
+
+Sessions allow to record, save, replay and edit sequences of
+evaluations. You can see them as named and executable histories. They
+are useful to quickly setup a given environment or to repeat a
+sequence of evaluations if you are making demonstrations with the
+toplevel.
+
+A session named [NAME] is stored in [~/.config/ocaml/session/NAME.ml]
+files. The file [~/.config/ocaml/session/last] holds the name of the
+last session used.

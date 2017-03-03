@@ -1,0 +1,17 @@
+description = "An OCaml toplevel upgrade"
+version = "%%VERSION_NUM%%"
+archive(byte) = "down.cma"
+archive(native) = "down.cmxa"
+plugin(byte) = "down.cma"
+plugin(native) = "down.cmxs"
+
+package "top" (
+ version = "%%VERSION_NUM%%"
+ description = "Down toplevel support"
+ requires = "down"
+ archive(byte) = "down_top.cma"
+ archive(native) = "down_top.cmxa"
+ plugin(byte) = "down_top.cma"
+ plugin(native) = "down_top.cmxs"
+ exists_if = "down_top.cma"
+)

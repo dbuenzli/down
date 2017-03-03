@@ -1,0 +1,8 @@
+true : bin_annot, safe_string
+<_b0> : -traverse
+<src> : include
+<src/**> : package(compiler-libs.toplevel)
+<test> : include
+<test/**> : use_down_stubs
+<src/down.{cma,cmxa}> : record_down_stubs
+<src/down_nattop.cmxs> : link_down_stubs

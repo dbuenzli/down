@@ -1,0 +1,34 @@
+opam-version: "2.0"
+maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
+authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+homepage: "https://erratique.ch/software/down"
+doc: "https://erratique.ch/software/down/doc"
+license: "ISC"
+dev-repo: "git+https://erratique.ch/repos/down.git"
+bug-reports: "https://github.com/dbuenzli/down/issues"
+tags: [ "org:erratique" "dev" "toplevel" "repl" ]
+available: [ ]
+depends: [
+  "ocaml" {>= "4.03.0"}
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+  "topkg" {build & >= "0.9.1" } ]
+depopts: []
+build: [
+  "ocaml" "pkg/pkg.ml" "build"
+          "--dev-pkg" "%{pinned}%"
+          "--lib-dir" "%{lib}%" ]
+
+# Following is only to deal with
+# https://caml.inria.fr/mantis/view.php?id=7808
+
+install:
+[
+  ["install" "-d" "%{lib}%/ocaml/"]
+  ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]
+]
+
+remove:
+[[
+  "rm" "-f" "%{lib}%/ocaml/down.top" "%{lib}%/ocaml/down.nattop"
+]]

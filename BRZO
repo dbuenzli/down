@@ -1,0 +1,3 @@
+(ocaml (target byte))
+(srcs-i .)
+(srcs-x myocamlbuild.ml pkg test src/down_nattop.ml)
