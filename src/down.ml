@@ -161,8 +161,13 @@ module Pstring = struct
     let kill = txt_range ~first:start ~last:(p.cursor - 1) p in
     subst ~start ~stop:p.cursor "" p, Some kill
 
-  let kill_line p =
-    if p.cursor = String.length p.s then p, None else
+  let kill_line_to_start p =
+    let start = Txt.prev_sol_pos p.s ~before:p.cursor in
+    if start = p.cursor then p, None else
+    let kill = txt_range ~first:start ~last:(p.cursor - 1) p in
+    subst ~start ~stop:p.cursor "" p, Some kill
+
+  let kill_line_to_end p =
     let stop = Txt.next_eol_pos p.s ~start:p.cursor in
     if stop = p.cursor then p, None else
     let kill = txt_range ~first:p.cursor ~last:(stop - 1) p in
@@ -407,7 +412,8 @@ module Prompt = struct
   let swap_cursor_and_mark = update Pstring.swap_cursor_and_mark
   let kill_prev_word = update_with_kill Pstring.kill_prev_word
   let kill_next_word = update_with_kill Pstring.kill_next_word
-  let kill_line = update_with_kill Pstring.kill_line
+  let kill_line_to_start = update_with_kill Pstring.kill_line_to_start
+  let kill_line_to_end = update_with_kill Pstring.kill_line_to_end
   let kill_region = update_with_kill Pstring.kill_region
   let yank p =
     if p.clipboard = "" then ding p else
@@ -463,7 +469,8 @@ module Prompt = struct
     [`Ctrl 0x78 (* x *);`Ctrl 0x78 (* x *)], kont swap_cursor_and_mark,
     "swap cursor and mark";
     [`Ctrl 0x79 (* y *)], kont yank, "yank";
-    [`Ctrl 0x6B (* k *)], kont kill_line, "kill to end of line";
+    [`Ctrl 0x6B (* k *)], kont kill_line_to_end, "kill to end of line";
+    [`Ctrl 0x75 (* k *)], kont kill_line_to_start, "kill to end of line";
     [`Meta 0x7F ], kont kill_prev_word, "kill to start of previous word";
     [`Meta 0x64 (* d *)], kont kill_next_word, "kill to end of next word";
     [`Ctrl 0x77 (* w *)], kont kill_region, "kill region";
