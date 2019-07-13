@@ -365,14 +365,14 @@ module Prompt = struct
       let suf_style = [`Fg `Magenta] in
       let rst_style = [`Italic; `Faint] in
       if c.[0] = ' ' then sty rst_style c else
-      match String.index c ':' with
+      match String.index c '\t' with
       | exception Not_found -> c (* should not happen but be robust *)
-      | colon ->
-          let rst_start = colon - 1 in
+      | tab ->
+          let rst_start = tab + 1 in
           let suf_start = String.length prefix in
           let pre = String.sub c 0 suf_start in
-          let suf = String.sub c suf_start (rst_start - suf_start) in
-          let rst = String.sub c rst_start (blen - rst_start) in
+          let suf = String.sub c suf_start (tab - suf_start) in
+          let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
           Printf.sprintf "  %s%s%s" pre (sty suf_style suf) (sty rst_style rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
@@ -545,10 +545,10 @@ module Complete = struct
         Error "Completion needs ocp-index. Try 'opam install ocp-index'."
     end
 
-  let complete_cmd token = ["ocp-index"; "complete"; "-f"; "%q : %t"; token ]
+  let complete_cmd token = ["ocp-index"; "complete"; "-f"; "%q \t %t"; token ]
   let complete_word word results =
     let add_id acc r =
-      let id = String.trim (List.hd (String.split_on_char ':' r)) in
+      let id = String.trim (List.hd (String.split_on_char '\t' r)) in
       if id = "" then acc else Ctrie.add (string_to_list id) (Some ()) acc
     in
     let ids = List.fold_left add_id Ctrie.empty results in
