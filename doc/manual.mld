@@ -14,8 +14,9 @@ You can add this line to your [~/.ocamlinit] file.
 
 The impact of using [Down] on the toplevel environment should be
 minimal: it loads the library [down.cma], makes the {{!Down}Down
-API} accessible by including its library directory and sets standard
-input in raw mode whenever it asks for user input.
+API} accessible by including its library directory, sets standard
+input in raw mode whenever it asks for user input and installs
+a signal handler for [SIGWINCH].
 
 This is it.
 

@@ -522,14 +522,14 @@ module Tty = struct
 
   let width readc = (* defaults to 80 if something seems wrong *)
     let read_pos readc =
-      let readc () = match readc () with None -> raise Exit | Some c -> c in
-      let rec int ~stop acc = match readc () with
+      let rec rreadc () = match readc () with None -> rreadc () | Some c -> c in
+      let rec int ~stop acc = match rreadc () with
       | b when 0x30 <= b && b <= 0x39 -> int ~stop (10 * acc + (b - 0x30))
       | b when b = stop -> acc
       | _ -> 0
       in
-      if readc () <> 0x1B then (0, 0) else
-      if readc () <> 0x5B then (0, 0) else
+      if rreadc () <> 0x1B then (0, 0) else
+      if rreadc () <> 0x5B then (0, 0) else
       let row = int ~stop:0x3B 0 in
       let col = int ~stop:0x52 0 in
       col, row
@@ -549,7 +549,7 @@ module Stdin = struct
   external set_raw_mode : bool -> bool = "ocaml_down_stdin_set_raw_mode"
   external readc : unit -> int = "ocaml_down_stdin_readc"
   let readc () = match readc () with
-  | -1 -> None | -2 -> raise (Sys_error "stdin read error") | n -> Some n
+  | -1 | -2 -> None | -3 -> raise (Sys_error "stdin read error") | n -> Some n
 
   let () =
     let disable_raw () = ignore (set_raw_mode false) in

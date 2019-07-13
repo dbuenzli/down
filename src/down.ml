@@ -275,7 +275,7 @@ module Prompt = struct
   module Itrie = Trie.Make (I)
   type cmd = t -> [`Eoi | `Kont | `Break]
   and t =
-    { tty_w : int;
+    { mutable tty_w : int;
       readc : unit -> int option;
       output : string -> unit;
       has_answer : Tty.input -> t -> string option;
@@ -495,7 +495,9 @@ module Prompt = struct
     let rec loop p input_state =
       render_ui p;
       match Tty.input p.readc with
-      | None -> return p; `Break
+      | None ->
+          (* Will mostly happen on EINTR and thus SIGWINCH *)
+          p.tty_w <- Tty.width p.readc; loop p input_state
       | Some i ->
           match p.has_answer i p with
           | Some a -> (add_history p a; return p; `Answer a)
@@ -577,6 +579,8 @@ module Complete = struct
           | _ as ret -> Ok ret
 end
 
+external sigwinch : unit -> int = "ocaml_down_sigwinch"
+
 let blit_toploop_buf s i b blen =
   let slen = String.length s in
   let slen_to_write = slen - i in
@@ -587,6 +591,8 @@ let blit_toploop_buf s i b blen =
 
 let ocaml_readline = ref (fun _ _ _ -> assert false)
 let down_readline ~tty_w () =
+  (* This is sufficient to interrupt the event loop on win size changes *)
+  let () = Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ())) in
   let history = History.load () in
   let complete = Complete.with_ocp_index in
   let p = Prompt.create ~complete ~history ~tty_w ~readc:Stdin.readc () in

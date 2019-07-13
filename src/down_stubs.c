@@ -4,9 +4,11 @@
    %%NAME%% release %%VERSION%%
    --------------------------------------------------------------------------*/
 
+#include <stdbool.h>
 #include <termios.h>
 #include <unistd.h>
-#include <stdbool.h>
+#include <errno.h>
+#include <signal.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 
@@ -46,7 +48,14 @@ CAMLprim value ocaml_down_stdin_readc (value unit)
   ret = read(0, &buf, 1);
   if (ret == 1) { CAMLreturn (Val_int (buf)); };
   if (ret == 0) { CAMLreturn (Val_int (-1)); };
-  CAMLreturn (Val_int (-2));
+  if (ret == -1 && errno == EINTR) { CAMLreturn (Val_int (-2)); };
+  CAMLreturn (Val_int (-3));
+}
+
+CAMLprim value ocaml_down_sigwinch (value unit)
+{
+  CAMLparam1 (unit);
+  CAMLreturn (Val_int (SIGWINCH));
 }
 
 /*---------------------------------------------------------------------------
