@@ -5,12 +5,6 @@
 
 open Down_std
 
-let log_down_error fmt =
-  Format.kasprintf (fun s -> Tty.output s) ("down: " ^^ fmt ^^ "\r\n")
-
-let log_on_error ~use:v = function
-| Error e -> log_down_error "%s" e; v | Ok v -> v
-
 (* Prompt history *)
 
 module Phistory = struct
@@ -206,6 +200,14 @@ module Pstring = struct
     in
     loop p.s (String.length p.s - 1) p.cursor 0 margin_w 0 margin_w 0
 end
+
+(* Down logging *)
+
+let log_down_error fmt =
+  Format.kasprintf (fun s -> Tty.output s) ("down: " ^^ fmt ^^ "\r\n")
+
+let log_on_error ~use:v = function
+| Error e -> log_down_error "%s" e; v | Ok v -> v
 
 (* History *)
 
@@ -579,8 +581,6 @@ module Complete = struct
           | _ as ret -> Ok ret
 end
 
-external sigwinch : unit -> int = "ocaml_down_sigwinch"
-
 let blit_toploop_buf s i b blen =
   let slen = String.length s in
   let slen_to_write = slen - i in
@@ -590,12 +590,7 @@ let blit_toploop_buf s i b blen =
   len, (if snext < slen then Some (s, snext) else None)
 
 let ocaml_readline = ref (fun _ _ _ -> assert false)
-let down_readline ~tty_w () =
-  (* This is sufficient to interrupt the event loop on win size changes *)
-  let () = Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ())) in
-  let history = History.load () in
-  let complete = Complete.with_ocp_index in
-  let p = Prompt.create ~complete ~history ~tty_w ~readc:Stdin.readc () in
+let down_readline p =
   let rem = ref None in
   fun prompt b len -> match !rem with
   | Some (s, i) ->
@@ -628,6 +623,8 @@ module Private = struct
       Fmt.(tty [`Fg `Yellow] string) "Down"
       Fmt.(tty [`Bold] string) "Down.help ()"
 
+  external sigwinch : unit -> int = "ocaml_down_sigwinch"
+
   let install_readline readline = match Tty.cap with
   | `None -> log_down_error "Disabled. No ANSI terminal capability detected."
   | `Ansi ->
@@ -636,8 +633,18 @@ module Private = struct
       | true ->
           let tty_w = Tty.width Stdin.readc in
           ignore (Stdin.set_raw_mode false);
+          let () =
+            (* This is sufficient to interrupt the event loop on window size
+               changes. *)
+            let nop _ = () in
+            Sys.set_signal (sigwinch ()) (Sys.Signal_handle nop)
+          in
+          let history = History.load () in
+          let complete = Complete.with_ocp_index in
+          let readc = Stdin.readc in
+          let p = Prompt.create ~complete ~history ~tty_w ~readc () in
           ocaml_readline := !readline;
-          readline := down_readline ~tty_w ();
+          readline := down_readline p;
           pp_announce Format.std_formatter ()
 end
 
