@@ -144,10 +144,10 @@ module Txt = struct
     if uchar_may_start s.[i] then i else
     sync_uchar_backward s ~start:(i - 1)
 
-  let uchar_start_len c = match Char.code c with
-  | b when b <= 0x7F -> 1 | b when b <= 0xBF -> 0
+  let utf_8_decode_len c = match Char.code c with
+  | b when b <= 0x7F -> 1 | b when b <= 0xBF -> 1
   | b when b <= 0xDF -> 2 | b when b <= 0xEF -> 3
-  | b when b <= 0xF7 -> 4 | _ -> 0
+  | b when b <= 0xF7 -> 4 | _ -> 1
 
   let uchar_count ?(start = 0) s =
     let max = String.length s - 1 in
@@ -156,8 +156,7 @@ module Txt = struct
     let count = if start' = start then 0 else 1 in
     let rec loop s max count i =
       if i > max then count else
-      let skip = uchar_start_len s.[i] in
-      let skip = if skip = 0 then skip + 1 else skip in
+      let skip = utf_8_decode_len s.[i] in
       loop s max (count + 1) (i + skip)
     in
     loop s max count start'
@@ -201,8 +200,7 @@ module Txt = struct
   let gc_count ?start s = uchar_count ?start s
   let gc_byte_len s ~start =
     let i = sync_uchar_backward s ~start in
-    let len = uchar_start_len s.[i] in
-    if len = 0 then len + 1 else len
+    utf_8_decode_len s.[i]
 
   let gc_next_pos s ~after ~count =
     let max = String.length s - 1 in
@@ -212,8 +210,7 @@ module Txt = struct
     let count = if start = after then count else count - 1 (* count next *) in
     let rec loop s max count i =
       if i > max || count <= 0 then i else
-      let skip = uchar_start_len s.[i] in
-      let skip = if skip = 0 then skip + 1 else skip in
+      let skip = utf_8_decode_len s.[i] in
       loop s max (count - 1) (i + skip)
     in
     loop s max count start
@@ -504,8 +501,7 @@ module Tty = struct
         | Some b -> Bytes.set buf i (Char.chr b); loop buf (i + 1)
     in
     let first = Char.chr first in
-    let uchar_len = Txt.uchar_start_len first in
-    let buf = Bytes.create (if uchar_len = 0 then 1 else uchar_len) in
+    let buf = Bytes.create (Txt.utf_8_decode_len first) in
     Bytes.set buf 0 first; loop buf 1
 
   let input readc = match readc () with

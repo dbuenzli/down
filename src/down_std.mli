@@ -57,10 +57,10 @@ module Txt : sig
   (** [uchar_may_start c] is [true] iff [c] is not an UTF-8
       continuation byte. *)
 
-  val uchar_start_len : char -> int
-  (** [uchar_start_len c] is the length of an UTF-8 encoded Unicode
-      character starting with [c]. This is [0] for malformed or
-      continuation bytes. *)
+  val utf_8_decode_len : char -> int
+  (** [utf_8_decode_len b] is the length of an UTF-8 encoded Unicode
+      character starting with byte [b]. The function returns is [1] for
+      malformed or continuation bytes. *)
 
   val uchar_count : ?start:int -> string -> int
   (** [uchar_count ~start s] is the number of Unicode characters in
