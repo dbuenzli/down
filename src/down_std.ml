@@ -83,18 +83,6 @@ module Txt = struct
 
   let is_eol = function '\n' | '\r' -> true | _ -> false
 
-  let line_count ?(start = 0) s =
-    let rec loop s max i last acc =
-      if i > max then acc else
-      if s.[i] = '\r' then loop s max (i + 1) s.[i] (acc + 1) else
-      if s.[i] = '\n' then
-        (if last = '\r'
-         then loop s max (i + 1) s.[i] acc
-         else loop s max (i + 1) s.[i] (acc + 1))
-      else loop s max (i + 1) s.[i] acc
-    in
-    loop s (String.length s - 1) start '\x00' 1
-
   let lines s = (* adapted from the stdlib's String.split_on_char *)
     let r = ref [] in
     let j = ref (String.length s) in
