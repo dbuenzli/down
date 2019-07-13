@@ -75,15 +75,28 @@ end
 
 module Txt = struct
 
-  (* FIXME do a good review of this. Especially w.r.t. to the start vs
-     before/after strategy and the boundary conditions (indices vs
-     positions). *)
+  let find_next ~sat s ~start =
+    let rec loop s max i =
+      if i > max then String.length s else
+      if sat s.[i] then i else loop s max (i + 1)
+    in
+    let max = String.length s - 1 and i = if start < 0 then 0 else start in
+    loop s max i
+
+  let find_prev ~sat s ~start =
+    let rec loop s i =
+      if i < 0 then 0 else
+      if sat s.[i] then i else loop s (i - 1)
+    in
+    let max = String.length s - 1 in
+    let i = if start > max then max else start in
+    loop s i
 
   (* Lines *)
 
-  let is_eol = function '\n' | '\r' -> true | _ -> false
-
-  let lines s = (* adapted from the stdlib's String.split_on_char *)
+  let lines s =
+    (* adapted from the stdlib's String.split_on_char, handles CR, CRLF and
+       LF line ends. *)
     let r = ref [] in
     let j = ref (String.length s) in
     for i = String.length s - 1 downto 0 do
@@ -94,139 +107,98 @@ module Txt = struct
     done;
     String.sub s 0 !j :: !r
 
-  (* XXX something smart should likely be done for CRFL management here... *)
+  (* XXX something smarter should likely be done for CRFL management here...
+     XXX Maybe look only for '\n' will do ? *)
 
-  let next_eol_pos s ~start =
-    let rec loop s max i = match i > max || s.[i] = '\n' || s.[i] = '\r' with
-    | true -> i
-    | false  -> loop s max (i + 1)
-    in
-    loop s (String.length s - 1) start
-
-  let prev_eol_pos s ~start =
-    let rec loop s i =
-      if i <= 0 then 0 else
-      if s.[i] = '\n' || s.[i] = '\r' then i else loop s (i - 1)
-    in
-    loop s start
-
-  let prev_sol_pos s ~before =
-    let rec loop s i =
-      if i < 0 then 0 else
-      if s.[i] = '\n' || s.[i] = '\r' then i + 1 else loop s (i - 1)
-    in
-    loop s (before - 1)
+  let is_eol = function '\n' | '\r' -> true | _ -> false
+  let find_next_eol s ~start = find_next ~sat:is_eol s ~start
+  let find_prev_eol s ~start = find_prev ~sat:is_eol s ~start
+  let find_prev_sol s ~start =
+    let i = find_prev_eol s ~start in
+    if String.length s = 0 || (i = 0 && not (is_eol s.[i])) then 0 else i + 1
 
   (* UTF-8 uchars *)
-
-  let uchar_may_start c = (* note: non-exact on invalid UTF-8 *)
-    Char.code c land 0xC0 <> 0x80
-
-  let rec sync_uchar_forward s ~max ~start:i =
-    if i > max then i else
-    if uchar_may_start s.[i] then i else
-    sync_uchar_forward s ~max ~start:(i + 1)
-
-  let rec sync_uchar_backward s ~start:i =
-    if i <= 0 then 0 else
-    if uchar_may_start s.[i] then i else
-    sync_uchar_backward s ~start:(i - 1)
 
   let utf_8_decode_len c = match Char.code c with
   | b when b <= 0x7F -> 1 | b when b <= 0xBF -> 1
   | b when b <= 0xDF -> 2 | b when b <= 0xEF -> 3
   | b when b <= 0xF7 -> 4 | _ -> 1
 
-  let uchar_count ?(start = 0) s =
-    let max = String.length s - 1 in
-    if max < 0 then 0 else
-    let start' = sync_uchar_forward s ~max ~start in
-    let count = if start' = start then 0 else 1 in
-    let rec loop s max count i =
-      if i > max then count else
-      let skip = utf_8_decode_len s.[i] in
-      loop s max (count + 1) (i + skip)
-    in
-    loop s max count start'
+  let is_utf_8_decode c = Char.code c land 0xC0 <> 0x80
+  let find_next_utf_8_decode s ~start = find_next ~sat:is_utf_8_decode s ~start
+  let find_prev_utf_8_decode s ~start = find_prev ~sat:is_utf_8_decode s ~start
+
+  (* White *)
+
+  let is_white = function
+  | ' ' | '\t' | '\n' | '\x0B' | '\x0C' | '\r' -> true | _ -> false
+
+  let find_next_white s ~start = find_next ~sat:is_white s ~start
+  let find_prev_white s ~start = find_prev ~sat:is_white s ~start
+
+  (* In general it's unwise to use the following functions on UTF-8
+     since they might end up on continuation bytes. But it's ok the
+     way we use them for segmenting words below. *)
+
+  let is_non_white c = not (is_white c)
+  let find_next_non_white s ~start = find_next ~sat:is_non_white s ~start
+  let find_prev_non_white s ~start = find_prev ~sat:is_non_white s ~start
 
   (* Words *)
 
-  let is_ascii_white = function
-  | ' ' | '\t' | '\n' | '\x0B' | '\x0C' | '\r' -> true | _ -> false
+  let find_next_after_eow s ~start =
+    find_next_white s ~start:(find_next_non_white s ~start)
 
-  let rec fwd_skip_white s max i =
-    if i > max || not (is_ascii_white s.[i]) then i else
-    fwd_skip_white s max (i + 1)
+  let find_prev_sow s ~start =
+    let i = find_prev_white s ~start:(find_prev_non_white s ~start) in
+    if String.length s = 0 || (i = 0 && is_non_white s.[i]) then 0 else i + 1
 
-  let rec fwd_skip_non_white s max i =
-    if i > max || is_ascii_white s.[i] then i else
-    fwd_skip_non_white s max (i + 1)
+  (* Grapheme clusters and TTY width *)
 
-  let rec back_skip_white s i =
-    if i <= 0 then 0 else
-    if not (is_ascii_white s.[i]) then i else
-    back_skip_white s (i - 1)
+  let tty_width s ~start = 1 (* FIXME plug in wcwidth *)
 
-  let rec back_skip_non_white s i =
-    if i <= 0 then 0 else
-    if is_ascii_white s.[i] then i else
-    back_skip_non_white s (i - 1)
-
-  let next_past_eow_pos s ~start =
-    let max = String.length s - 1 in
-    fwd_skip_non_white s max (fwd_skip_white s max start)
-
-  let prev_sow_pos s ~start =
-    let i = back_skip_white s (start - 1) in
-    if i = 0 then 0 else
-    let i = back_skip_non_white s i in
-    if is_ascii_white s.[i] then i + 1 else i
-
-  (* Grapheme clusters. TODO the following needs to be adjusted with wcwidth.
-     As far as data goes, try with a byte trie on UTF-8 encoded uchar. *)
-
-  let gc_count ?start s = uchar_count ?start s
-  let gc_byte_len s ~start =
-    let i = sync_uchar_backward s ~start in
-    utf_8_decode_len s.[i]
-
-  let gc_next_pos s ~after ~count =
-    let max = String.length s - 1 in
-    if after > max then max + 1 else
-    if count <= 0 then after else
-    let start = sync_uchar_forward s ~max ~start:after in
-    let count = if start = after then count else count - 1 (* count next *) in
-    let rec loop s max count i =
-      if i > max || count <= 0 then i else
-      let skip = utf_8_decode_len s.[i] in
-      loop s max (count - 1) (i + skip)
+  let find_next_gc_and_tty_width s ~after =
+    let rec loop s max w i =
+      if i > max then String.length s, w else
+      let w' = w + tty_width s ~start:i in
+      if w' > 1 then i, w else loop s max w' (i + utf_8_decode_len s.[i])
     in
-    loop s max count start
+    let max = String.length s - 1 and i = if after < 0 then 0 else after in
+    loop s max 0 i
 
-  let gc_prev_pos s ~before ~count =
-    let max = String.length s - 1 in
-    if before = 0 then 0 else
-    if count <= 0 then before else
-    let start = if before > max then max else before in
-    let count = if start = before then count else count - 1 (* count last *) in
-    let start = sync_uchar_backward s ~start in
-    let rec loop s count i =
+  let find_next_gc s ~after = fst (find_next_gc_and_tty_width s ~after)
+  let find_prev_gc s ~before =
+    let rec loop s w i =
       if i <= 0 then 0 else
-      if count <= 0 then i else
-      let i = sync_uchar_backward s ~start:(i - 1) in
-      loop s (count - 1) i
+      let i = find_prev_utf_8_decode s ~start:(i - 1) in
+      let w = w + tty_width s ~start:i in
+      if w >= 1 then i else loop s w i
     in
-    loop s count start
+    let len = String.length s in
+    let i = if before > len then len else before in
+    loop s 0 i
 
-  let gc_to_prev_eol_pos s ~before =
-    if before = 0 then 0, 0 else
-    let rec loop s count i =
-      if s.[i] = '\n' then i, count else
-      if i = 0 then 0, count + 1 else
-      let i = gc_prev_pos s ~before:i ~count:1 in
-      loop s (count + 1) i
+  let find_prev_eol_and_tty_width s ~before =
+    let rec loop s w i =
+      if i <= 0 then 0, w else
+      let i = find_prev_utf_8_decode s ~start:(i - 1) in
+      if is_eol s.[i] then i, w else
+      let w = w + tty_width s ~start:i in
+      loop s w i
     in
-    loop s 0 (before - 1)
+    let len = String.length s in
+    let i = if before > len then len else before in
+    loop s 0 i
+
+  let find_next_tty_width_or_eol s ~start ~w =
+    let rec loop s max w i =
+      if i > max then String.length s - 1 else
+      if w <= 0 then i else
+      let i, gc_w = find_next_gc_and_tty_width s ~after:i in
+      loop s max (w - gc_w) i
+    in
+    let max = String.length s - 1 and i = if start < 0 then 0 else start in
+    loop s max w i
 end
 
 (* OS interaction *)

@@ -27,87 +27,112 @@ module Trie : sig
   module Make (T : Map.OrderedType) : S with type elt = T.t
 end
 
-(** UTF-8 text handling, possibly malformed. *)
+(** UTF-8 text handling, possibly malformed.
+
+    {b Note.} [start], [after] and [before] arguments can be out of
+    bounds and in particular equal to the string length.  Finding
+    forwards returns the string length if it cannot be found, finding
+    backwards returns 0 if it cannot be found. *)
 module Txt : sig
 
   (** {1:lines Lines} *)
-
-  val is_eol : char -> bool
-  (** [is_eol] is [true] iff [c] is ['\r'] or ['\n']. *)
 
   val lines : string -> string list
   (** [lines s] splits [s] into CR, CRLF, LF lines separated lines. This is
       [[""]] on the empty string. *)
 
-  val next_eol_pos : string -> start:int -> int
-  (** [next_eol_pos s ~start] is either [Sys.max_string s] or the index
-      of the byte at or after [start] that satisfies {!is_eol}. *)
+  val is_eol : char -> bool
+  (** [is_eol] is [true] iff [c] is ['\r'] or ['\n']. *)
 
-  val prev_sol_pos : string -> before:int -> int
-  (** [prev_sol_pos s ~start] is either [0] or the index of the byte
-      after the byte before [before] that satisfies {!is_eol} *)
+  val find_next_eol : string -> start:int -> int
+  (** [find_next_eol s ~start] is either [Sys.max_string s] or the index of
+      the byte at or after [start] that satisfies {!is_eol}. *)
 
-  val prev_eol_pos : string -> start:int -> int
-  (** [next_eol s ~start] is either [0] or the index of the byte
+  val find_prev_eol : string -> start:int -> int
+  (** [find_prev_eol s ~start] is either [0] or the index of the byte
       at or before [start] that satisfies {!is_eol}. *)
+
+  val find_prev_sol : string -> start:int -> int
+  (** [find_prev_sol s ~start] is either [0] or the position {e after} the
+      byte at or before [start] that satisfies {!is_eol}. This can be
+      [Sys.max_string s]. *)
 
   (** {1:uchar UTF-8 encoded Unicode characters} *)
 
-  val uchar_may_start : char -> bool
-  (** [uchar_may_start c] is [true] iff [c] is not an UTF-8
-      continuation byte. *)
-
   val utf_8_decode_len : char -> int
   (** [utf_8_decode_len b] is the length of an UTF-8 encoded Unicode
-      character starting with byte [b]. The function returns is [1] for
-      malformed or continuation bytes. *)
+      character starting with byte [b]. This is [1] on UTF-8
+      continuation or malformed bytes. *)
 
-  val uchar_count : ?start:int -> string -> int
-  (** [uchar_count ~start s] is the number of Unicode characters in
-      [s] starting at [start] (defaults to [0]). *)
+  val is_utf_8_decode : char -> bool
+  (** [is_utf_8_decode c] is [true] iff [c] is not an UTF-8 continuation
+      byte. This means [c] is either an UTF-8 start byte or an UTF-8
+      malformed byte. *)
+
+  val find_next_utf_8_decode : string -> start:int -> int
+  (** [find_next_utf_8_sync s ~start] is either [Sys.max_string s] or the
+      index of the byte at or after [start] that satisfies
+      {!is_utf_8_decode}. *)
+
+  val find_prev_utf_8_decode : string -> start:int -> int
+  (** [find_prev_utf_8_decode s ~start] is either [0] or the index of the
+      byte at or before [start] that satisfies {!is_utf_8_decode}. *)
+
+  (** {1:white Whitespace} *)
+
+  val is_white : char -> bool
+  (** [is_white c] is [true] iff [c] is US-ASCII whitespace (0x20,
+      0x09, 0x0A, 0x0B, 0x0C or 0x0D). *)
+
+  val find_next_white : string -> start:int -> int
+  (** [find_next_white s ~start] is either [String.length s] or the first
+      byte position at or after [start] such that {!is_white} is
+      [true]. *)
+
+  val find_prev_white : string -> start:int -> int
+  (** [find_prev_white s ~start] is either either [0] or the first byte
+      position at or before [start] such that {!is_white} is
+      [true]. *)
 
   (** {1:words Words} *)
 
-  val is_ascii_white : char -> bool
-  (** [is_ascii_white c] is [true] iff [c] is US-ASCII whitespace. *)
+  val find_next_after_eow : string -> start:int -> int
+  (** [find_next_after_eow] is either [String.length s] or the byte position
+      of the first {!is_white} after first skipping white and then
+      non-white starting at [start]. *)
 
-  val next_past_eow_pos : string -> start:int -> int
-  (** [next_past_eow_pos] is the byte position after skipping forward
-      first white and then non-white. The result may be [String.length s]. *)
+  val find_prev_sow : string -> start:int -> int
+  (** [find_prev_sow] is either [0] or the byte position after skipping
+      backward first white and then non-white. *)
 
-  val prev_sow_pos : string -> start:int -> int
-  (** [prev_sow_pos] is the byte position obtained by skipping backward
-      first white and then non-white from [start - 1]. *)
-
-  (** {1:gc Grapheme clusters}
+  (** {1:gc Grapheme clusters and TTY width}
 
       {b Note.} This is a simple notion of grapheme cluster based
-      on {!Uucp.Break.tty_width_hint}. {b Note on Note.} That's not
-      even true yet. *)
+      on {!Uucp.Break.tty_width_hint}. *)
 
-  val gc_count : ?start:int -> string -> int
-  (** [gc_count ~start s] are the number of grapheme clusters
-      in [s] starting at [s] (defaults to [0]). *)
+  val find_next_gc : string -> after:int -> int
+  (** [find_next_gc s ~after] is [String.length s] or the byte position of
+      the grapheme cluster after the one starting at [after]. *)
 
-  val gc_byte_len : string -> start:int -> int
-  (** [gc_byte_len ~start s] is the length in bytes of the grapheme cluster
-      starting at byte [start] in [s]. *)
+  val find_next_gc_and_tty_width : string -> after:int -> int * int
+  (** [find_next_gc_and_width s ~after] is like {!find_next_gc} but
+      also returns in the second component the tty width of the
+      grapheme cluster at [after]. *)
 
-  val gc_next_pos : string -> after:int -> count:int -> int
-  (** [gc_next_pos s ~count ~after] is the byte position of the [count]h
-      grapheme cluster after byte index [after] or [String.lenght s]
-      if there were less than that. If [count] is [0] this is [after]. *)
+  val find_prev_gc : string -> before:int -> int
+  (** [find_prev_gc s ~before] is [0] or the the byte position of the
+      grapheme cluster before the one starting at [before]. *)
 
-  val gc_prev_pos : string -> before:int -> count:int -> int
-  (** [gc_prev_idx s ~count ~before] is the byte position of [count]h
-      grapheme cluster before byte index [before] or [0] if there
-      were less than that. [before] can be [String.length s]. If [count]
-      is [0] this is [before]. *)
+  val find_prev_eol_and_tty_width : string -> before:int -> int * int
+  (** [find_prev_eol_and_tty_width s ~before] is either [0] or the
+      index of the byte before [before] that satisfies {!is_eol} and
+      in the second component, the tty width needed to go from that index
+      to [before]. *)
 
-  val gc_to_prev_eol_pos : string -> before:int -> int * int
-  (** [gc_to_prev_eol_pos s ~start] is (i, gc_count) with [i] either
-      0 or the byte index before [before] that satisfies {!is_eol} and
-      [gc_count] the number of grapheme clusters skipped to get there.  *)
+  val find_next_tty_width_or_eol : string -> start:int -> w:int -> int
+  (** [find_next_tty_width_or_eol s ~start ~w] is the index of the grapheme
+      cluster after TTY width [w] at or after [start] or of the next
+      end of line if that happened before. *)
 end
 
 (** Environment variables. *)

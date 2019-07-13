@@ -76,7 +76,7 @@ module Pstring = struct
   | Some m  -> { p with cursor = m; mark = Some p.cursor }
 
   let completion_start p =
-    let rec loop s i = match i < 0 || Txt.is_ascii_white s.[i] with
+    let rec loop s i = match i < 0 || Txt.is_white s.[i] with
     | true -> let ret = i + 1 in if ret = p.cursor then None else Some ret
     | false -> loop s (i - 1)
     in
@@ -84,40 +84,26 @@ module Pstring = struct
 
   let soi p = set_cursor 0 p
   let eoi p = set_cursor (String.length p.s) p
-  let sol p = set_cursor (Txt.prev_sol_pos p.s ~before:p.cursor) p
-  let eol p = set_cursor (Txt.next_eol_pos p.s ~start:p.cursor) p
-  let next_char p = set_cursor (Txt.gc_next_pos p.s ~after:p.cursor ~count:1) p
-  let prev_char p = set_cursor (Txt.gc_prev_pos p.s ~before:p.cursor ~count:1) p
-  let next_word p = set_cursor (Txt.next_past_eow_pos p.s ~start:p.cursor) p
-  let prev_word p = set_cursor (Txt.prev_sow_pos p.s ~start:p.cursor) p
+  let sol p = set_cursor (Txt.find_prev_sol p.s ~start:(p.cursor - 1)) p
+  let eol p = set_cursor (Txt.find_next_eol p.s ~start:p.cursor) p
+  let next_char p = set_cursor (Txt.find_next_gc p.s ~after:p.cursor) p
+  let prev_char p = set_cursor (Txt.find_prev_gc p.s ~before:p.cursor) p
+  let next_word p = set_cursor (Txt.find_next_after_eow p.s ~start:p.cursor) p
+  let prev_word p = set_cursor (Txt.find_prev_sow p.s ~start:(p.cursor - 1)) p
 
-  (* Prev and next line can certainly be improved. *)
-
-  let prev_line p = (* FIXME this doesn't work when p.[0] = '\n' *)
-    if p.cursor = 0 then p else
-    let nl, cc = Txt.gc_to_prev_eol_pos p.s ~before:p.cursor in
-    if nl = 0 then p else
-    let cursor =
-      let prev_nl, prev_line_cols = Txt.gc_to_prev_eol_pos p.s ~before:nl in
-      if prev_line_cols < cc + 1 then nl else
-      let count_to_cc = if prev_nl = 0 then cc else cc + 1 in
-      Txt.gc_next_pos p.s ~after:prev_nl ~count:count_to_cc
-    in
+  let prev_line p =
+    let nl, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
+    if String.length p.s = 0 || (nl = 0 && not (Txt.is_eol p.s.[0])) then p else
+    let prev_nl = Txt.find_prev_eol p.s ~start:(nl - 1) in
+    let start = prev_nl + if Txt.is_eol p.s.[prev_nl] then 1 else 0 in
+    let cursor = Txt.find_next_tty_width_or_eol p.s ~start ~w in
     set_cursor cursor p
 
   let next_line p =
-    let slen = String.length p.s in
-    if p.cursor = slen then p else
-    let _, cc = Txt.gc_to_prev_eol_pos p.s ~before:p.cursor in
-    let nl_start = Txt.next_eol_pos p.s ~start:p.cursor in
-    if nl_start = slen then p else
-    let cursor =
-      let rec loop count i =
-        if count = 0 || i = slen || Txt.is_eol p.s.[i] then i else
-        loop (count - 1) (Txt.gc_next_pos p.s ~after:i ~count:1)
-      in
-      loop cc (nl_start + 1)
-    in
+    let _, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
+    let next_nl = Txt.find_next_eol p.s ~start:(p.cursor + 1) in
+    if next_nl = String.length p.s then p else
+    let cursor = Txt.find_next_tty_width_or_eol p.s ~start:(next_nl + 1) ~w in
     set_cursor cursor p
 
   let subst ~start:r0 ~stop:r1 bytes p =
@@ -135,34 +121,34 @@ module Pstring = struct
   let insert bytes p = subst p.cursor p.cursor bytes p
   let delete_next_char p =
     if p.cursor = String.length p.s then p else
-    let stop = p.cursor + Txt.gc_byte_len p.s p.cursor in
+    let stop = Txt.find_next_gc p.s ~after:p.cursor in
     subst ~start:p.cursor ~stop "" p
 
   let delete_prev_char p =
     if p.cursor = 0 then p else
-    let prev = Txt.gc_prev_pos p.s ~count:1 ~before:p.cursor in
+    let prev = Txt.find_prev_gc p.s ~before:p.cursor in
     subst ~start:prev ~stop:p.cursor "" p
 
   let kill_next_word p =
-    if p.cursor = String.length p.s then p, None else
-    let stop = Txt.next_past_eow_pos p.s ~start:p.cursor in
+    let stop = Txt.find_next_after_eow p.s ~start:p.cursor in
+    if stop = p.cursor then p, None else
     let kill = txt_range ~first:p.cursor ~last:(stop - 1) p in
     subst ~start:p.cursor ~stop "" p, Some kill
 
   let kill_prev_word p =
     if p.cursor = 0 then p, None else
-    let start = Txt.prev_sow_pos p.s ~start:p.cursor in
+    let prev = Txt.find_prev_sow p.s ~start:(p.cursor - 1) in
+    let kill = txt_range ~first:prev ~last:(p.cursor - 1) p in
+    subst ~start:prev ~stop:p.cursor "" p, Some kill
+
+  let kill_to_sol p =
+    let start = Txt.find_prev_sol p.s ~start:(p.cursor - 1) in
+    if start = p.cursor - 1 then p, None else
     let kill = txt_range ~first:start ~last:(p.cursor - 1) p in
     subst ~start ~stop:p.cursor "" p, Some kill
 
-  let kill_line_to_start p =
-    let start = Txt.prev_sol_pos p.s ~before:p.cursor in
-    if start = p.cursor then p, None else
-    let kill = txt_range ~first:start ~last:(p.cursor - 1) p in
-    subst ~start ~stop:p.cursor "" p, Some kill
-
-  let kill_line_to_end p =
-    let stop = Txt.next_eol_pos p.s ~start:p.cursor in
+  let kill_to_eol p =
+    let stop = Txt.find_next_eol p.s ~start:p.cursor in
     if stop = p.cursor then p, None else
     let kill = txt_range ~first:p.cursor ~last:(stop - 1) p in
     subst ~start:p.cursor ~stop "" p, Some kill
@@ -194,8 +180,8 @@ module Pstring = struct
         let r, c = if c mod tty_w = 0 then (* wrap *) r + 1, 0 else r, c in
         let cr, cc = if i = cursor then (r, c) else (cr, cc) in
         let nl = s.[i] = '\n' in
-        let r, c = if nl then r + 1, margin_w else r, c + 1 in
-        let i = i + Txt.gc_byte_len s ~start:i in
+        let i, gc_w = Txt.find_next_gc_and_tty_width s ~after:i in
+        let r, c = if nl then r + 1, margin_w else r, c + gc_w in
         loop s max cursor cr cc r c i
     in
     loop p.s (String.length p.s - 1) p.cursor 0 margin_w 0 margin_w 0
@@ -414,8 +400,8 @@ module Prompt = struct
   let swap_cursor_and_mark = update Pstring.swap_cursor_and_mark
   let kill_prev_word = update_with_kill Pstring.kill_prev_word
   let kill_next_word = update_with_kill Pstring.kill_next_word
-  let kill_line_to_start = update_with_kill Pstring.kill_line_to_start
-  let kill_line_to_end = update_with_kill Pstring.kill_line_to_end
+  let kill_to_sol = update_with_kill Pstring.kill_to_sol
+  let kill_to_eol = update_with_kill Pstring.kill_to_eol
   let kill_region = update_with_kill Pstring.kill_region
   let yank p =
     if p.clipboard = "" then ding p else
@@ -471,8 +457,8 @@ module Prompt = struct
     [`Ctrl 0x78 (* x *);`Ctrl 0x78 (* x *)], kont swap_cursor_and_mark,
     "swap cursor and mark";
     [`Ctrl 0x79 (* y *)], kont yank, "yank";
-    [`Ctrl 0x6B (* k *)], kont kill_line_to_end, "kill to end of line";
-    [`Ctrl 0x75 (* k *)], kont kill_line_to_start, "kill to end of line";
+    [`Ctrl 0x6B (* k *)], kont kill_to_eol, "kill to end of line";
+    [`Ctrl 0x75 (* k *)], kont kill_to_sol, "kill to start of line";
     [`Meta 0x7F ], kont kill_prev_word, "kill to start of previous word";
     [`Meta 0x64 (* d *)], kont kill_next_word, "kill to end of next word";
     [`Ctrl 0x77 (* w *)], kont kill_region, "kill region";
