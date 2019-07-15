@@ -155,13 +155,16 @@ module Txt = struct
 
   (* Grapheme clusters and TTY width *)
 
-  let tty_width s ~start = 1 (* FIXME plug in wcwidth *)
+  let tty_width s ~start = match s.[start] = '\n' with
+  | true -> 1
+  | false -> Down_tty_width.of_utf_8 s ~start
 
   let find_next_gc_and_tty_width s ~after =
     let rec loop s max w i =
       if i > max then String.length s, w else
-      let w' = w + tty_width s ~start:i in
-      if w' > 1 then i, w else loop s max w' (i + utf_8_decode_len s.[i])
+      let iw = tty_width s ~start:i in
+      if w >= 1 && iw <> 0 then i, w else
+      loop s max (w + iw) (i + utf_8_decode_len s.[i])
     in
     let max = String.length s - 1 and i = if after < 0 then 0 else after in
     loop s max 0 i

@@ -1,4 +1,4 @@
-PKG compiler-libs.common
+PKG compiler-libs.common uucp
 S src
 S test
 B _b0/**
