@@ -300,9 +300,9 @@ module Prompt = struct
 
   let create
       ?(complete = fun w -> Ok (w, [])) ?(history = ref (Phistory.v []))
-      ?(output = Tty.output) ~tty_w ~readc ()
+      ?(output = Tty.output) ~readc ()
     =
-    { tty_w; readc; output; has_answer; complete; history; clipboard = "";
+    { tty_w = 80; readc; output; has_answer; complete; history; clipboard = "";
       txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
 
   (* Rendering *)
@@ -482,13 +482,12 @@ module Prompt = struct
 
   let ask p =
     let reset p = p.last_cr <- 0; p.last_max_r <- 0; p.txt <- Pstring.empty in
+    let resize p = p.tty_w <- Tty.width p.readc in
     let return p = render_ui ~active:false p; p.output Tty.newline in
     let rec loop p input_state =
       render_ui p;
       match Tty.input p.readc with
-      | None ->
-          (* Will mostly happen on EINTR and thus SIGWINCH *)
-          p.tty_w <- Tty.width p.readc; loop p input_state
+      | None -> (* EINTR (and thus SIGWINCH) *) resize p; loop p input_state
       | Some i ->
           match p.has_answer i p with
           | Some a -> (add_history p a; return p; `Answer a)
@@ -508,7 +507,7 @@ module Prompt = struct
                   | `Break -> return p; `Break
                   | `Eoi -> `Eoi
     in
-    (reset p; loop p cmd_trie)
+    (reset p; resize p; loop p cmd_trie)
 end
 
 (* Toploop interaction *)
@@ -620,7 +619,6 @@ module Private = struct
       match Stdin.set_raw_mode true with
       | false -> log_down_error "Disabled. Raw mode setup for stdin failed."
       | true ->
-          let tty_w = Tty.width Stdin.readc in
           ignore (Stdin.set_raw_mode false);
           let () =
             (* This is sufficient to interrupt the event loop on window size
@@ -631,7 +629,7 @@ module Private = struct
           let history = History.load () in
           let complete = Complete.with_ocp_index in
           let readc = Stdin.readc in
-          let p = Prompt.create ~complete ~history ~tty_w ~readc () in
+          let p = Prompt.create ~complete ~history ~readc () in
           ocaml_readline := !readline;
           readline := down_readline p;
           pp_announce Format.std_formatter ()
