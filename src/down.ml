@@ -143,8 +143,10 @@ module Pstring = struct
 
   let kill_to_sol p =
     let start = Txt.find_prev_sol p.s ~start:(p.cursor - 1) in
-    if start = p.cursor - 1 then p, None else
-    let kill = txt_range ~first:start ~last:(p.cursor - 1) p in
+    let start = if start = p.cursor then p.cursor - 1 else start in
+    let last = p.cursor - 1 in
+    if start < 0 || last < 0 then p, None else
+    let kill = txt_range ~first:start ~last p in
     subst ~start ~stop:p.cursor "" p, Some kill
 
   let kill_to_eol p =
