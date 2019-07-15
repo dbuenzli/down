@@ -149,7 +149,8 @@ module Pstring = struct
 
   let kill_to_eol p =
     let stop = Txt.find_next_eol p.s ~start:p.cursor in
-    if stop = p.cursor then p, None else
+    let stop = if stop = p.cursor then stop + 1 else stop in
+    if stop > String.length p.s then p, None else
     let kill = txt_range ~first:p.cursor ~last:(stop - 1) p in
     subst ~start:p.cursor ~stop "" p, Some kill
 
