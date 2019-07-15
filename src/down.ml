@@ -75,13 +75,6 @@ module Pstring = struct
   | None -> p | Some m when m > String.length p.s -> { p with mark = None }
   | Some m  -> { p with cursor = m; mark = Some p.cursor }
 
-  let completion_start p =
-    let rec loop s i = match i < 0 || Txt.is_white s.[i] with
-    | true -> let ret = i + 1 in if ret = p.cursor then None else Some ret
-    | false -> loop s (i - 1)
-    in
-    loop p.s (p.cursor - 1)
-
   let soi p = set_cursor 0 p
   let eoi p = set_cursor (String.length p.s) p
   let sol p = set_cursor (Txt.find_prev_sol p.s ~start:(p.cursor - 1)) p
@@ -415,7 +408,18 @@ module Prompt = struct
   | Error e -> error p "%s" e
   | Ok txt -> set_txt_value p txt
 
-  let complete p = match Pstring.completion_start p.txt with
+  let completion_start p =
+    let id_path_char = function
+    | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
+    | _ -> false
+    in
+    let rec loop s i =
+      if i >= 0 && id_path_char s.[i] then loop s (i - 1) else
+      let ret = i + 1 in if ret = (Pstring.cursor p) then None else Some ret
+    in
+    loop p.s (Pstring.cursor p - 1)
+
+  let complete p = match completion_start p.txt with
   | None -> ding p
   | Some start ->
       let set_subst p start old w =
