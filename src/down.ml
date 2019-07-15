@@ -92,18 +92,18 @@ module Pstring = struct
   let prev_word p = set_cursor (Txt.find_prev_sow p.s ~start:(p.cursor - 1)) p
 
   let prev_line p =
-    let nl, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
-    if String.length p.s = 0 || (nl = 0 && not (Txt.is_eol p.s.[0])) then p else
-    let prev_nl = Txt.find_prev_eol p.s ~start:(nl - 1) in
-    let start = prev_nl + if Txt.is_eol p.s.[prev_nl] then 1 else 0 in
+    let l, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
+    let pl = Txt.find_prev_eol p.s ~start:(l - 1) in
+    let start = if pl = l || not (Txt.is_eol p.s.[pl]) then 0 else pl + 1 in
     let cursor = Txt.find_next_tty_width_or_eol p.s ~start ~w in
     set_cursor cursor p
 
   let next_line p =
-    let _, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
-    let next_nl = Txt.find_next_eol p.s ~start:(p.cursor + 1) in
-    if next_nl = String.length p.s then p else
-    let cursor = Txt.find_next_tty_width_or_eol p.s ~start:(next_nl + 1) ~w in
+    let l, w = Txt.find_prev_eol_and_tty_width p.s ~before:p.cursor in
+    let start = if p.cursor = 0 && w = 0 then 0 else l + 1 in
+    let nl = Txt.find_next_eol p.s ~start in
+    if nl = String.length p.s then p else
+    let cursor = Txt.find_next_tty_width_or_eol p.s ~start:(nl + 1) ~w in
     set_cursor cursor p
 
   let subst ~start:r0 ~stop:r1 bytes p =

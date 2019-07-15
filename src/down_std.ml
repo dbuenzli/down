@@ -192,8 +192,8 @@ module Txt = struct
 
   let find_next_tty_width_or_eol s ~start ~w =
     let rec loop s max w i =
-      if i > max then String.length s - 1 else
-      if w <= 0 then i else
+      if i > max then String.length s else
+      if w <= 0 || is_eol s.[i] then i else
       let i, gc_w = find_next_gc_and_tty_width s ~after:i in
       loop s max (w - gc_w) i
     in
