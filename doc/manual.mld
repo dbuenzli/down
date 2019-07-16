@@ -29,6 +29,12 @@ interfaces. A summary of key bindings is available by invoking:
 # Down.help ()
 ]}
 
+Unicode text is supported in a limited manner using a weak form of
+grapheme clusters based on the data of {!Uucp.Break.tty_break_hint}.
+This should be good enough for basic REPL interaction. However it may
+fail not too catastrophically on some of UTF-8 encoded string literals
+(e.g. if those contain emoji skin tone modifiers).
+
 {1:input_history Input history}
 
 To navigate input history use the up and down arrows of your keyboard.
