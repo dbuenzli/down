@@ -3,9 +3,19 @@
    Distributed under the ISC license, see terms at the end of the file.
   ---------------------------------------------------------------------------*)
 
-let () =
-  if !Sys.interactive
-  then (Down.Private.install_readline Opttoploop.read_interactive_input)
+module Top = struct
+  let readline = Opttoploop.read_interactive_input
+  let exec_phrase ~print_result s =
+    try
+      let lex = Lexing.from_string s in
+      let phrase = !(Opttoploop.parse_toplevel_phrase) lex in
+      Ok (Opttoploop.execute_phrase print_result Format.std_formatter phrase)
+    with exn ->
+      (* We are hitting https://github.com/ocaml/ocaml/issues/6704 here *)
+      Error exn
+end
+
+let () = if !Sys.interactive then (Down.Private.set_top (module Top))
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 The down programmers

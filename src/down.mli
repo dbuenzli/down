@@ -13,6 +13,8 @@
 val help : unit -> unit
 (** [help ()] prints help about Down. *)
 
+val exec_phrase : print_result:bool -> string -> (bool, exn) result
+
 (** Manage your history. *)
 module History : sig
   val edit : unit -> unit
@@ -63,10 +65,13 @@ module Private : sig
 
   (** {1:down Down's private area} *)
 
-  val install_readline : (string -> bytes -> int -> int * bool) ref -> unit
-  (** [install_readline] install [Down]'s enhanced toplevel
-      interaction in the given {!Toploop.read_interactive_input} reference.
-      And announce Down's availability if that succeeeds. *)
+  module type TOP = sig
+    val readline : (string -> bytes -> int -> int * bool) ref
+    val exec_phrase : print_result:bool -> string -> (bool, exn) result
+  end
+
+  val set_top : (module TOP) -> unit
+  (** [set_top t] sets the toplevel implementation to [t]. *)
 end
 
 (*---------------------------------------------------------------------------

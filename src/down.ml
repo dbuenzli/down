@@ -5,6 +5,22 @@
 
 open Down_std
 
+(* Accessing top level functionality regardless of ocaml or ocamlnat. *)
+
+module type TOP = sig
+  val readline : (string -> bytes -> int -> int * bool) ref
+  val exec_phrase : print_result:bool -> string -> (bool, exn) result
+end
+
+module Nil = struct
+  let nil () = invalid_arg "Down.Private.set_top not called"
+  let readline = ref (fun _ _ _ -> nil ())
+  let exec_phrase ~print_result _ = nil ()
+end
+
+(* To be plugged by native or bytecode implementations. *)
+let top : (module TOP) ref = ref (module Nil : TOP)
+
 (* Prompt history *)
 
 module Phistory = struct
@@ -231,6 +247,10 @@ module History = struct
 end
 
 (* Sessions *)
+
+let exec_phrase ~print_result s =
+  let module Top = (val !top : TOP) in
+  Top.exec_phrase ~print_result s
 
 module Session = struct
   type t = string list
@@ -573,6 +593,8 @@ module Complete = struct
           | _ as ret -> Ok ret
 end
 
+(* Toplevel readline *)
+
 let blit_toploop_buf s i b blen =
   let slen = String.length s in
   let slen_to_write = slen - i in
@@ -600,6 +622,30 @@ let down_readline p =
       | false -> !ocaml_readline prompt b len
       | true -> let r = loop p in ignore (Stdin.set_raw_mode false); r
 
+external sigwinch : unit -> int = "ocaml_down_sigwinch"
+let install_readline () = match Tty.cap with
+| `None -> log_down_error "Disabled. No ANSI terminal capability detected."
+| `Ansi ->
+    match Stdin.set_raw_mode true with
+    | false -> log_down_error "Disabled. Raw mode setup for stdin failed."
+    | true ->
+        ignore (Stdin.set_raw_mode false);
+        let () =
+          (* This is sufficient to interrupt the event loop on window size
+               changes. *)
+          let nop _ = () in
+          Sys.set_signal (sigwinch ()) (Sys.Signal_handle nop)
+        in
+        let history = History.load () in
+        let complete = Complete.with_ocp_index in
+        let readc = Stdin.readc in
+        let p = Prompt.create ~complete ~history ~readc () in
+        let module Top = (val !top : TOP) in
+        ocaml_readline := !Top.readline;
+        Top.readline := down_readline p
+
+(* Help *)
+
 let help () =
   let pp_help ppf () =
     Fmt.pf ppf "@[<v>%a:@, @[<v>%a@]@]@."
@@ -615,28 +661,12 @@ module Private = struct
       Fmt.(tty [`Fg `Yellow] string) "Down"
       Fmt.(tty [`Bold] string) "Down.help ()"
 
-  external sigwinch : unit -> int = "ocaml_down_sigwinch"
 
-  let install_readline readline = match Tty.cap with
-  | `None -> log_down_error "Disabled. No ANSI terminal capability detected."
-  | `Ansi ->
-      match Stdin.set_raw_mode true with
-      | false -> log_down_error "Disabled. Raw mode setup for stdin failed."
-      | true ->
-          ignore (Stdin.set_raw_mode false);
-          let () =
-            (* This is sufficient to interrupt the event loop on window size
-               changes. *)
-            let nop _ = () in
-            Sys.set_signal (sigwinch ()) (Sys.Signal_handle nop)
-          in
-          let history = History.load () in
-          let complete = Complete.with_ocp_index in
-          let readc = Stdin.readc in
-          let p = Prompt.create ~complete ~history ~readc () in
-          ocaml_readline := !readline;
-          readline := down_readline p;
-          pp_announce Format.std_formatter ()
+  module type TOP = TOP
+
+  let set_top t =
+    top := t; install_readline ();
+    pp_announce Format.std_formatter ()
 end
 
 (*---------------------------------------------------------------------------
