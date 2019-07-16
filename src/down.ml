@@ -5,21 +5,53 @@
 
 open Down_std
 
-(* Accessing top level functionality regardless of ocaml or ocamlnat. *)
+(* Accessing the toploop API functionality regardless of ocaml or ocamlnat.
+   Works around https://github.com/ocaml/ocaml/issues/7589 pt 4. *)
 
 module type TOP = sig
   val readline : (string -> bytes -> int -> int * bool) ref
   val exec_phrase : print_result:bool -> string -> (bool, exn) result
+  val use_file : Format.formatter -> string -> bool
+  val use_silently : Format.formatter -> string -> bool
 end
 
 module Nil = struct
   let nil () = invalid_arg "Down.Private.set_top not called"
   let readline = ref (fun _ _ _ -> nil ())
   let exec_phrase ~print_result _ = nil ()
+  let use_file _ _ = nil ()
+  let use_silently _ _ = nil ()
 end
 
-(* To be plugged by native or bytecode implementations. *)
+(* Plugged to the right implementation by Down_top or Down_nattop *)
 let top : (module TOP) ref = ref (module Nil : TOP)
+let use_file ?(silent = false) file =
+  let module Top = (val !top : TOP) in
+  match silent with
+  | true -> Top.use_silently Format.std_formatter file
+  | false -> Top.use_file Format.std_formatter file
+
+
+(* Text made of entries separated by a special line. *)
+
+module Entries = struct
+  type t = string list
+  let nl = if Sys.win32 then "\r\n" else "\n"
+  let to_string ~sep es = String.concat (Printf.sprintf "%s%s%s" nl sep nl) es
+  let of_string ~sep s =
+    let add_entry acc lines =
+      let e = String.concat nl (List.rev lines) in
+      if e = "" then acc else e :: acc
+    in
+    let rec loop acc curr = function
+    | [] -> List.rev (add_entry acc curr)
+    | l :: ls ->
+        if String.equal (String.trim l) sep
+        then loop (add_entry acc curr) [] ls
+        else loop acc (l :: curr) ls
+    in
+    loop [] [] (Txt.lines s)
+end
 
 (* Prompt history *)
 
@@ -56,23 +88,8 @@ module Phistory = struct
 
   (* Serializing *)
 
-  let nl = if Sys.win32 then "\r\n" else "\n"
-  let to_string ~sep h =
-    String.concat (Printf.sprintf "%s%s%s" nl sep nl) (entries h)
-
-  let of_string ~sep s =
-    let add_entry acc lines =
-      let e = String.concat nl (List.rev lines) in
-      if e = "" then acc else e :: acc
-    in
-    let rec loop acc curr = function
-    | [] -> v @@ List.rev (add_entry acc curr)
-    | l :: ls ->
-        if String.equal (String.trim l) sep
-        then loop (add_entry acc curr) [] ls
-        else loop acc (l :: curr) ls
-    in
-    loop [] [] (Txt.lines s)
+  let to_string ~sep h = Entries.to_string ~sep (entries h)
+  let of_string ~sep s = v (Entries.of_string ~sep s)
 end
 
 (* String editor *)
@@ -201,11 +218,13 @@ end
 
 (* Down logging *)
 
-let log_down_error fmt =
-  Format.kasprintf (fun s -> Tty.output s) ("down: " ^^ fmt ^^ "\r\n")
+let _log style fmt =
+  let down style = Tty.styled_str Tty.cap style "Down: " in
+  Format.kasprintf (fun s -> Tty.output ((down style) ^ s)) (fmt ^^ "\r\n")
 
-let log_on_error ~use:v = function
-| Error e -> log_down_error "%s" e; v | Ok v -> v
+let log fmt = _log [`Bold; `Fg `Yellow] fmt
+let log_error fmt = _log [`Bold; `Fg `Red] fmt
+let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
 
 (* History *)
 
@@ -248,28 +267,232 @@ end
 
 (* Sessions *)
 
-let exec_phrase ~print_result s =
-  let module Top = (val !top : TOP) in
-  Top.exec_phrase ~print_result s
-
 module Session = struct
   type t = string list
+  type name = string
+
+  let sep = "(**)"
+  let to_string phrases = Entries.to_string ~sep phrases
+  let of_string s = (Entries.of_string ~sep s)
+
   let dir () =
     Result.bind (Dir.config ()) @@ fun dir ->
     Ok (Filename.concat dir "ocaml/session")
 
-  let sep = "(**)"
-  let current = ref []
-  let step = ref 0
-  let list () = failwith "TODO"
-  let reset () = failwith "TODO"
-  let step () = failwith "TODO"
-  let skip () = failwith "TODO"
-  let back () = failwith "TODO"
-  let exec s = failwith "TODO"
-  let edit s = failwith "TODO"
-  let rename src ~dst = failwith "TODO"
-  let copy src ~dst = failwith "TODO"
+  let dir_file fn = Result.bind (dir ()) @@ fun d -> Ok (Filename.concat d fn)
+  let last_session_file () = dir_file "last"
+  let unsaved_file () = dir_file "unsaved"
+  let session_file = function
+  | "" -> Error "Session name cannot be empty."
+  | n -> dir_file (n ^ ".ml")
+
+  let session_of_path p =
+    if not (Filename.check_suffix p ".ml") then None else
+    Some (Filename.(basename (chop_extension p)), p)
+
+  let sessions_of_dir dir =
+    Result.bind (Dir.exists dir) @@ function
+    | false -> Ok []
+    | true ->
+        Result.bind (Dir.contents dir) @@ fun paths ->
+        let rec add_session acc p = match session_of_path p with
+        | None -> acc | Some (n, p) -> (n, p) :: acc
+        in
+        Ok (List.sort compare (List.fold_left add_session [] paths))
+
+  let last_session () =
+    Result.bind (last_session_file ()) @@ fun file ->
+    Result.bind (File.exists file) @@ function
+    | false -> Ok None
+    | true ->
+        Result.bind (File.read file) @@ fun n ->
+        let name = String.trim n in
+        Result.bind (session_file name) @@ fun file ->
+        Result.bind (File.exists file) @@ function
+        | false -> Ok None
+        | true -> Ok (Some (name, file))
+
+  let set_last_session n =
+    Result.bind (last_session_file ()) @@ fun file -> File.set_content ~file n
+
+  let find_session n = match n with
+  | "" -> last_session ()
+  | n -> Result.bind (session_file n) @@ fun f -> Ok (Some (n, f))
+
+  let get_session n =
+    let err = "No existing last session found." in
+    Result.bind (find_session n) @@ function
+    | None -> Error err
+    | Some (name, file) -> Ok (name, file)
+
+  let get_existing_session n =
+    Result.bind (get_session n) @@ fun (n, file as s) ->
+    Result.bind (File.exists file) @@ function
+    | true -> Ok s
+    | false ->
+        Error (Fmt.str "No session '%s' found. See 'Down.Session.list ()'." n)
+
+  let last () =
+    log_on_error ~use:None @@
+    Result.bind (last_session ()) @@ function
+    | None -> Ok None | Some (n, _) -> Ok (Some n)
+
+  let list () =
+    let pp_session ~last ppf (n, path) =
+      let last = last = n in
+      Fmt.pf ppf "@[<h>%a %s%a@]"
+        Fmt.(tty (if last then [`Bold; `Fg `Green] else [`Bold]) string) n
+        (if last then "(last) " else "")
+        Fmt.(tty [`Faint] string) path
+    in
+    let pp_session_list ~last ppf ss =
+      Fmt.pf ppf "  @[<v>%a:@, @[<v>%a@]@]@."
+        (Fmt.tty [`Fg `Yellow] Fmt.string) "Available sessions"
+        (Fmt.list (pp_session ~last)) ss
+    in
+    log_on_error ~use:() @@
+    Result.bind (dir ()) @@ fun dir ->
+    Result.bind (last_session ()) @@ fun last ->
+    Result.bind (sessions_of_dir dir) @@ function
+    | [] -> Ok (log "No session found.")
+    | ss ->
+        let last = match last with None -> "" | Some (last, _) -> last in
+        Ok (pp_session_list ~last Format.std_formatter ss)
+
+  let load ?silent n =
+    log_on_error ~use:() @@
+    Result.bind (get_existing_session n) @@ fun (n, file) ->
+    match use_file ?silent file with
+    | true -> set_last_session n
+    | false ->
+        Error (Fmt.str "Use 'Down.Session.edit \"%s\";;' to correct session." n)
+
+  let edit n =
+    log_on_error ~use:() @@
+    Result.bind (get_session n) @@ fun (_, file) ->
+    Result.bind (File.exists file) @@ function
+    | true -> Editor.edit_file file
+    | false ->
+        (* create path *)
+        Result.bind (File.set_content ~file "") @@ fun () ->
+        Editor.edit_file file
+
+  let err_exists n =
+    Fmt.str "Session '%s' exists. Use '~replace:true' to overwrite." n
+
+  let of_file ?(replace = false) ~file n =
+    log_on_error ~use:() @@
+    Result.bind (get_session n) @@ fun (n, session_file) ->
+    Result.bind (File.exists session_file) @@ function
+    | true when not replace -> Error (err_exists n)
+    | true | false ->
+        Result.bind (File.read file) @@ fun contents ->
+        File.set_content ~file:session_file contents
+
+  let delete n =
+    log_on_error ~use:() @@
+    Result.bind (get_existing_session n) @@ fun (_, f) -> File.delete f
+
+  (* Recording sessions. *)
+
+  let recording : bool ref = ref false
+  let _recorded : string list ref = ref []
+  let set_recorded phrases = _recorded := List.rev phrases
+  let recorded () = List.rev !_recorded
+  let rem_last_recorded () = _recorded := List.tl !_recorded
+  let start () = match !recording with
+  | true -> rem_last_recorded (); log "Phrases are already being recorded."
+  | false -> recording := true; log "%s" "Phrases are now recorded."
+
+  let stop_msg = "Phrases are no longer recorded."
+  let stop () = match !recording with
+  | true -> rem_last_recorded (); recording := false; log "%s" stop_msg
+  | false -> log_error "Phrases were not recorded."
+
+  let revise () =
+    if !recording then rem_last_recorded ();
+    log_on_error ~use:() @@
+    let s = to_string (recorded ()) in
+    Result.bind (Editor.edit_string ~ext:".ml" s) @@ fun s ->
+    Ok (set_recorded (of_string s))
+
+  let save ?(replace = false) n =
+    if !recording then (rem_last_recorded (); recording := false);
+    log_on_error ~use:() @@
+    match recorded () with
+    | [] -> Ok (log "No phrase to save.")
+    | ps ->
+        Result.bind (get_session n) @@ fun (n, file) ->
+        Result.bind (File.exists file) @@ function
+        | true when not replace -> Error (err_exists n)
+        | true | false ->
+            Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
+            Ok (set_recorded [])
+
+  let append n =
+    if !recording then (rem_last_recorded (); recording := false);
+    log_on_error ~use:() @@
+    Result.map_error (Fmt.str "Session append failed: %s") @@
+    match recorded () with
+    | [] -> Ok (log "No phrase to append.")
+    | ps ->
+        Result.bind (get_session n) @@ fun (_, file) ->
+        Result.bind (File.exists file) @@ function
+        | false ->
+            Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
+            Ok (set_recorded [])
+        | true ->
+            Result.bind (File.read file) @@ fun contents ->
+            let ps = of_string contents @ ps in
+            Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
+            Ok (set_recorded [])
+
+  (* The idea of the following is to avoid a dialog to confirm losing
+     existing recorded phrases. Though similar to history, it may be
+     confusing on parallel sessions. *)
+
+  let load_unsaved () =
+    log_on_error ~use:_recorded @@
+    Result.bind (unsaved_file ()) @@ fun file ->
+    Result.bind (File.exists file) @@ function
+    | false -> Ok _recorded
+    | true ->
+        Result.bind (File.read file) @@ fun contents ->
+        set_recorded (of_string contents);
+        Result.bind (File.set_content ~file "") @@ fun () -> Ok _recorded
+
+  let save_unsaved () =
+    log_on_error ~use:() @@
+    match recorded () with
+    | [] -> Ok ()
+    | ps ->
+        Result.bind (unsaved_file ()) @@ fun file ->
+        Result.bind (File.exists file) @@ function
+        | false -> File.set_content ~file (to_string ps)
+        | true ->
+            Result.bind (File.read file) @@ fun contents ->
+            (* Another toplevel process may have written meanwhile... *)
+            File.set_content ~file (to_string (of_string contents @ ps))
+
+  (* Stepping sessions. *)
+
+  let steps : string array ref = ref [||]
+  let step = ref (-1)
+
+  let step_next () = match !step with
+  | s when s >= Array.length !steps - 1 -> None
+  | s -> incr step; (Some !steps.(!step))
+
+  let step_prev () = match !step with
+  | s when s <= 0 -> None
+  | s -> decr step; (Some !steps.(!step))
+
+  let steps n =
+    log_on_error ~use:() @@
+    Result.bind (get_existing_session n) @@ fun (_, file) ->
+    Result.bind (File.read file) @@ fun contents ->
+    steps := Array.of_list (of_string contents);
+    step := (-1); Ok ()
 end
 
 (* Prompting *)
@@ -285,6 +508,8 @@ module Prompt = struct
       has_answer : Tty.input -> t -> string option;
       complete : string -> (string * string list, string) result;
       history : (* mutable *) Phistory.t ref;
+      recording : (* mutable *) bool ref;
+      recorded : (* mutable *) Session.t ref;
       mutable clipboard : string;
       mutable txt : Pstring.t;
       (* These are zero-based rows relat. to the prompt line for clearing. *)
@@ -313,10 +538,12 @@ module Prompt = struct
 
   let create
       ?(complete = fun w -> Ok (w, [])) ?(history = ref (Phistory.v []))
-      ?(output = Tty.output) ~readc ()
+      ?(recording = ref false) ?(recorded = ref []) ?(output = Tty.output)
+      ~readc ()
     =
-    { tty_w = 80; readc; output; has_answer; complete; history; clipboard = "";
-      txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
+    { tty_w = 80; readc; output; has_answer; complete; history; recording;
+      recorded; clipboard = ""; txt = Pstring.empty; last_cr = 0;
+      last_max_r = 0; }
 
   (* Rendering *)
 
@@ -343,15 +570,16 @@ module Prompt = struct
   let prompt = "# "
   let margin = "  "
   let nl_margin = "\r\n  "
-  let render_prompt ~active = match active with
-  | true -> Tty.styled_str Tty.cap [`Fg `Green] prompt
-  | false -> Tty.styled_str Tty.cap [`Faint; `Fg `Green] prompt
+  let render_prompt ~active ~recording =
+    let style = if recording then [`Fg `Cyan] else [`Fg `Green] in
+    let style = if active then style else (`Faint :: style) in
+    Tty.styled_str Tty.cap style prompt
 
   let render_ui ?(active = true) p =
     let tty_w = p.tty_w and margin_w = String.length margin in
     let max_r, (cr, cc, c_nl) = Pstring.geometry ~tty_w ~margin_w p.txt in
     let add_line acc l = nl_margin :: l :: acc in
-    let acc = [render_prompt ~active] in
+    let acc = [render_prompt ~active ~recording:!(p.recording)] in
     let acc = List.fold_left add_line acc (Txt.lines (Pstring.txt p.txt)) in
     let acc = "\r" :: List.tl acc (* remove exceeding nl_margin *) in
     let acc = if c_nl (* cursor wrapped *) then "\n" :: acc else acc in
@@ -455,6 +683,13 @@ module Prompt = struct
   let ctrl_d p =
     if Pstring.txt p.txt = "" then `Eoi else (delete_next_char p; `Kont)
 
+  let session_next_step p = match Session.step_next () with
+  | None -> ding p | Some s -> set_txt_value p s
+
+  let session_prev_step p = match Session.step_prev () with
+  | None -> ding p | Some s -> set_txt_value p s
+
+  let add_recorded p s = if !(p.recording) then p.recorded := s :: !(p.recorded)
   let add_history p s = p.history := Phistory.add !(p.history) s
   let prev_history = update_history Phistory.prev
   let next_history = update_history Phistory.next
@@ -483,6 +718,10 @@ module Prompt = struct
     [`Ctrl 0x60 (* space ? *)], kont set_mark, "set the mark";
     [`Ctrl 0x78 (* x *);`Ctrl 0x78 (* x *)], kont swap_cursor_and_mark,
     "swap cursor and mark";
+    [`Ctrl 0x78 (* x *);`Ctrl 0x6E (* n *)], kont session_next_step,
+    "next session step";
+    [`Ctrl 0x78 (* x *);`Ctrl 0x70 (* p *)], kont session_prev_step,
+    "previous session step";
     [`Ctrl 0x79 (* y *)], kont yank, "yank";
     [`Ctrl 0x6B (* k *)], kont kill_to_eol, "kill to end of line";
     [`Ctrl 0x75 (* k *)], kont kill_to_sol, "kill to start of line";
@@ -514,7 +753,7 @@ module Prompt = struct
       | None -> (* EINTR (and thus SIGWINCH) *) resize p; loop p input_state
       | Some i ->
           match p.has_answer i p with
-          | Some a -> (add_history p a; return p; `Answer a)
+          | Some a -> (add_history p a; add_recorded p a; return p; `Answer a)
           | None ->
               let input_state = Itrie.find [i] input_state in
               match Itrie.value input_state with
@@ -603,7 +842,7 @@ let blit_toploop_buf s i b blen =
   Bytes.blit_string s i b 0 len;
   len, (if snext < slen then Some (s, snext) else None)
 
-let ocaml_readline = ref (fun _ _ _ -> assert false)
+let original_ocaml_readline = ref (fun _ _ _ -> assert false)
 let down_readline p =
   let rem = ref None in
   fun prompt b len -> match !rem with
@@ -612,22 +851,22 @@ let down_readline p =
       rem := rem'; (len, false)
   | None ->
       let rec loop p = match Prompt.ask p with
-      | `Eoi -> History.save (); (0, true)
+      | `Eoi -> History.save (); Session.save_unsaved (); (0, true)
       | `Break -> Tty.output "Interrupted.\r\n"; loop p
       | `Answer ans ->
           let len, rem' = blit_toploop_buf ans 0 b len in
           rem := rem'; (len, false)
       in
       match Stdin.set_raw_mode true with
-      | false -> !ocaml_readline prompt b len
+      | false -> !original_ocaml_readline prompt b len
       | true -> let r = loop p in ignore (Stdin.set_raw_mode false); r
 
 external sigwinch : unit -> int = "ocaml_down_sigwinch"
 let install_readline () = match Tty.cap with
-| `None -> log_down_error "Disabled. No ANSI terminal capability detected."
+| `None -> log_error "Disabled. No ANSI terminal capability detected."
 | `Ansi ->
     match Stdin.set_raw_mode true with
-    | false -> log_down_error "Disabled. Raw mode setup for stdin failed."
+    | false -> log_error "Disabled. Raw mode setup for stdin failed."
     | true ->
         ignore (Stdin.set_raw_mode false);
         let () =
@@ -638,10 +877,14 @@ let install_readline () = match Tty.cap with
         in
         let history = History.load () in
         let complete = Complete.with_ocp_index in
+        let recording = Session.recording in
+        let recorded = Session.load_unsaved () in
         let readc = Stdin.readc in
-        let p = Prompt.create ~complete ~history ~readc () in
+        let p =
+          Prompt.create ~complete ~history ~recording ~recorded ~readc ()
+        in
         let module Top = (val !top : TOP) in
-        ocaml_readline := !Top.readline;
+        original_ocaml_readline := !Top.readline;
         Top.readline := down_readline p
 
 (* Help *)
@@ -654,16 +897,17 @@ let help () =
   in
   pp_help Format.std_formatter ()
 
-module Private = struct
-  let pp_announce ppf () =
-    Format.fprintf ppf
-      "%a %%VERSION%% loaded. Tab complete %a for more info.@."
-      Fmt.(tty [`Fg `Yellow] string) "Down"
-      Fmt.(tty [`Bold] string) "Down.help ()"
+(* Private *)
 
+let pp_announce ppf () =
+  Format.fprintf ppf
+    "%a %%VERSION%% loaded. Tab complete %a for more info.@."
+    Fmt.(tty [`Fg `Yellow] string) "Down"
+    Fmt.(tty [`Bold] string) "Down.help ()"
+
+module Private = struct
 
   module type TOP = TOP
-
   let set_top t =
     top := t; install_readline ();
     pp_announce Format.std_formatter ()

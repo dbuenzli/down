@@ -35,7 +35,7 @@ This should be good enough for basic REPL interaction. However it may
 fail not too catastrophically on some of UTF-8 encoded string literals
 (e.g. if those contain emoji skin tone modifiers).
 
-{1:input_history Input history}
+{1:history Input history}
 
 To navigate input history use the up and down arrows of your keyboard.
 
@@ -62,14 +62,116 @@ user defined symbols in the toplevel are not yet completable.
 
 {1:sessions Sessions}
 
-Sessions support is TODO.
-
 Sessions allow to record, save, replay and edit sequences of
-evaluations. You can see them as named and executable histories. They
-are useful to quickly setup a given environment or to repeat a
-sequence of evaluations if you are making demonstrations with the
-toplevel.
+phrases. You can see them as named and executable histories or
+[#use]able files available via short and absolute names.
 
-A session named [NAME] is stored in [~/.config/ocaml/session/NAME.ml]
-files. The file [~/.config/ocaml/session/last] holds the name of the
-last session used.
+
+They are useful to quickly setup a given environment or to reliably
+insert a given sequence of phrases on the prompt if you are making a
+demonstration with the toplevel (see {{!stepping}stepping}).
+
+{2:basic Basics}
+
+Sessions management is provided by the {!Down.Session} module. To list
+available sessions isue:
+
+{[
+# Down.Session.list ()
+]}
+
+There are different ways of creating sessions. One way of doing so
+is to call the [edit] function
+
+{[
+# Down.Session.edit "mysession"
+]}
+
+this opens an OCaml file named [mysession.ml] in your editor in which
+you can insert or modify OCaml toplevel phrases. Once you are done,
+you can [load] the session to execute its phrases:
+
+{[
+# Down.Session.load "mysession"
+]}
+
+This is strictly equivalent to [#use] the session file.
+
+One convention you should remember is that the string [""] can be used
+in many functions to refer to the name of the last [load]ed
+session. For example:
+
+{[
+# Down.Session.load "" (* Load the last loaded session *)
+# Down.Session.edit "" (* Edit the last loaded session *)
+]}
+
+{2:recording Recording phrases}
+
+Another way of creating a session is to record your phrases
+and eventually save them in a session. To start recording a session use:
+
+{[
+# Down.Session.start ()
+]}
+
+You can now issue phrases. Each phrase you input is being
+recorded. Unfortunately also those phrases that error. This is
+why you may want to revise recorded phrases from time to time
+to make them coherent:
+
+{[
+# Down.Session.revise ()
+]}
+
+Once you are done you can save the buffer of recorded phrases with
+[save]:
+
+{[
+# Down.Session.save "mysetup"
+]}
+
+This stops session recording, clears and saves the buffer of recorded
+phrases in a new session ["mysetup"]. The [append] function works like
+[save] but appends the recorded phrases to a session which is created
+if it does not exist.
+
+{[
+# Down.Session.append "mysetup" (* Like save but appends to "mysetup" *)
+]}
+
+Session ["mysetup"] can now be [load]ed to play back the recorded
+phrases. If the sequence happens to have an error when you load it,
+simply edit the session to correct it.
+
+If you forget to save your recorded steps they should be available to
+[revise], [save] or [append] the next time you run [ocaml] ({b
+WARNING} at the moment only true if you quit via [C-d]).
+
+{2:stepping Stepping phrases}
+
+Stepping through a session allows to reliably paste a sequence
+of phrases on your prompt. To step through a session issue:
+
+{[
+# Down.Session.steps "mysession"
+]}
+
+You can now use [C-x C-n] and [C-x C-p] to navigate the phrases of the
+session and paste them on your prompt. Note that like the history
+file, steps are separated by [(**)] lines in session files.
+
+{2:data Where is the data ?}
+
+A session named [NAME] is stored in a
+[~/.config/ocaml/session/NAME.ml] file. Like the {{!history}history
+file} a session file is a plain OCaml file with phrases separated by
+[(**)] lines. The latter is only used to delineate steps for
+{{!stepping}stepping}.
+
+The file [~/.config/ocaml/session/last] holds the name of the last
+session used.
+
+If you recorded phrases but didn't save them they are saved in
+[~/.config/ocaml/session/unsaved] and reloaded on the next [ocaml]
+execution ({b WARNING} at the moment only true if you quit via [C-d]).

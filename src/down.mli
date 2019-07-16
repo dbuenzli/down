@@ -13,9 +13,7 @@
 val help : unit -> unit
 (** [help ()] prints help about Down. *)
 
-val exec_phrase : print_result:bool -> string -> (bool, exn) result
-
-(** Manage your history. *)
+(** Manage history. *)
 module History : sig
   val edit : unit -> unit
   (** [edit ()] edits history in your editor. *)
@@ -24,34 +22,66 @@ module History : sig
   (** [clear ()] clears your history. *)
 end
 
-(** Manage sessions. *)
+(** Manage sessions.
+
+    See the {{!page-manual.sessions}manual}. *)
 module Session : sig
-(*
+
+  (** {1:sessions Sessions} *)
+
+  type name = string
+  (** The type for session names. Use [""] to denote the {!last}
+      session. *)
+
+  val last : unit -> string option
+  (** [last ()] is the last session executed via {!load}; if any and still
+      existing. *)
 
   val list : unit -> unit
-  (** [list ()] lists sessions. *)
+  (** [list ()] lists available sessions. *)
 
-val copy : ?doc:string -> string -> string -> unit
-val rename : ?doc:string -> string -> string -> unit
-val delete : string -> unit
+  val load : ?silent:bool -> name -> unit
+  (** [load n] loads and executes session [n]. If [silent] is [true]
+      the result of phrases is not printed out (defaults to [false]). *)
 
-val load : ?replay:bool -> string -> unit
-(** [load ~replay n] loads session [n] and if [replay] is [false] (default) *)
+  val edit : name -> unit
+  (** [edit n] edits session [n] in your editor. A session is
+      created if [n] doesn't exist. *)
 
-val save : ?doc:string -> string -> unit
-(** [save ~append ~doc n] saves the current session under the name [n].
-    If [n] already exists and [append] is [false] *)
+  val of_file : ?replace:bool -> file:string -> name -> unit
+  (** [of_file ~replace ~file n] takes the contents of file [file]
+      and stores it session [n]. The function errors if [n] exists; unless
+      [replace] is [true] (defaults to [false]). *)
 
-(** {1:replay Replay commands}
+  val delete : name -> unit
+  (** [delete n] deletes session [n]. *)
 
-    Replay can be interleaved with other commands.
+  (** {1:record Recording sessions} *)
 
-    Cursor:
+  val start : unit -> unit
+  (** [start] starts recording phrases. *)
 
-    {ul
-    {- Exec point and navigation.}
-    {- Need to be able to move both}} *)
-*)
+  val stop : unit -> unit
+  (** [stop] stops recording phrases. *)
+
+  val revise : unit -> unit
+  (** [revise ()] edit recorded phrases. *)
+
+  val save : ?replace:bool -> name -> unit
+  (** [save n] saves recorded phrases, clears the recording buffer and
+      stops recording. The function errors and the recording buffer is
+      kept intact if [n] exists; unless [replace] is [true] (defaults
+      to [false]). *)
+
+  val append : name -> unit
+  (** [append n] is like {!save} except it appends to [n] (and creates
+      it if it doesn't exist). *)
+
+  (** {1:stepping Stepping sessions} *)
+
+  val steps : name -> unit
+  (** [steps ()] loads a session for stepping through manually via
+      [C-x C-p] and [C-x C-n]. *)
 end
 
 (** {1 Private} *)
@@ -68,6 +98,8 @@ module Private : sig
   module type TOP = sig
     val readline : (string -> bytes -> int -> int * bool) ref
     val exec_phrase : print_result:bool -> string -> (bool, exn) result
+    val use_file : Format.formatter -> string -> bool
+    val use_silently : Format.formatter -> string -> bool
   end
 
   val set_top : (module TOP) -> unit

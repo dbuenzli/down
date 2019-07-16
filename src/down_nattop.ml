@@ -13,6 +13,9 @@ module Top = struct
     with exn ->
       (* We are hitting https://github.com/ocaml/ocaml/issues/6704 here *)
       Error exn
+
+  let use_file = Opttoploop.use_file
+  let use_silently = Opttoploop.use_silently
 end
 
 let () = if !Sys.interactive then (Down.Private.set_top (module Top))
