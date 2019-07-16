@@ -150,6 +150,12 @@ module Dir : sig
 
   val create : string -> (unit, string) result
   (** [create dir] creates directory [dir]. *)
+
+  val exists : string -> (bool, string) result
+  (** [exists dir] is [true] if [dir] exists as a directory. *)
+
+  val contents : string -> (string list, string) result
+  (** [contents dir] is the directory contents of [dir]. *)
 end
 
 (** Files. *)

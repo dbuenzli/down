@@ -241,6 +241,15 @@ module Dir = struct
   let mkdir_posix dir = ["mkdir"; "-p"; dir]
   let mkdir = if Sys.win32 then mkdir_win32 else mkdir_posix
   let create dir = Result.map_error snd @@ cmd_run (mkdir dir)
+
+  let exists dir =
+    Result.catch_sys_error @@ fun () ->
+    Ok Sys.(file_exists dir && is_directory dir)
+
+  let contents dir =
+    Result.catch_sys_error @@ fun () ->
+    let contents = Array.to_list (Sys.readdir dir) in
+    Ok (List.rev_map (Filename.concat dir) contents)
 end
 
 module File = struct
