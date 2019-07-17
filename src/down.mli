@@ -19,7 +19,7 @@ module History : sig
   (** [edit ()] edits history in your editor. *)
 
   val clear : unit -> unit
-  (** [clear ()] clears your history. *)
+  (** [clear ()] clears the history. *)
 end
 
 (** Manage sessions.
@@ -33,30 +33,31 @@ module Session : sig
   (** The type for session names. Use [""] to denote the {!last}
       session. *)
 
-  val last : unit -> string option
-  (** [last ()] is the last session executed via {!load}; if any and still
-      existing. *)
+  val last_name : unit -> string option
+  (** [last_name ()] is the last session executed via {!load}; if any
+      and still existing. *)
 
   val list : unit -> unit
   (** [list ()] lists available sessions. *)
 
   val load : ?silent:bool -> name -> unit
-  (** [load n] loads and executes session [n]. If [silent] is [true]
-      the result of phrases is not printed out (defaults to [false]). *)
+  (** [load s] loads and executes session [s]. If [silent] is [true]
+      the result of phrases is not printed out (defaults to
+      [false]). *)
 
   val edit : name -> unit
-  (** [edit n] edits session [n] in your editor. A session is
-      created if [n] doesn't exist. *)
+  (** [edit s] edits session [s] in your editor. A session is created
+      if [s] does not exist. *)
 
   val of_file : ?replace:bool -> file:string -> name -> unit
-  (** [of_file ~replace ~file n] takes the contents of file [file]
-      and stores it session [n]. The function errors if [n] exists; unless
+  (** [of_file ~replace ~file s] takes the contents of file [file] and
+      stores it session [s]. The function errors if [s] exists; unless
       [replace] is [true] (defaults to [false]). *)
 
   val delete : name -> unit
-  (** [delete n] deletes session [n]. *)
+  (** [delete s] deletes session [s]. *)
 
-  (** {1:record Recording sessions} *)
+  (** {1:record Recording} *)
 
   val start : unit -> unit
   (** [start] starts recording phrases. *)
@@ -65,36 +66,32 @@ module Session : sig
   (** [stop] stops recording phrases. *)
 
   val revise : unit -> unit
-  (** [revise ()] edit recorded phrases. *)
+  (** [revise ()] edits recorded phrases. *)
 
   val save : ?replace:bool -> name -> unit
-  (** [save n] saves recorded phrases, clears the recording buffer and
-      stops recording. The function errors and the recording buffer is
-      kept intact if [n] exists; unless [replace] is [true] (defaults
-      to [false]). *)
+  (** [save s] clears and saves recorded phrases to [s] and stops
+      recording. The function errors and the recorded phrases are kept
+      intact if [s] exists; unless [replace] is [true] (defaults to
+      [false]). *)
 
   val append : name -> unit
-  (** [append n] is like {!save} except it appends to [n] (and creates
-      it if it doesn't exist). *)
+  (** [append s] is like {!save} except it appends to [s] or creates
+      it if it does not exist. *)
 
-  (** {1:stepping Stepping sessions} *)
+  (** {1:stepping Stepping} *)
 
   val steps : name -> unit
   (** [steps ()] loads a session for stepping through manually via
       [C-x C-p] and [C-x C-n]. *)
 end
 
-(** {1 Private} *)
+(** Private.
 
-
-(** Private API
-
-    This is an unstable API subject to change even between minor versions
-    of the library. Use at your own risk. *)
+    Do not use. This is an unstable API subject to change even between
+    minor versions of the library. *)
 module Private : sig
 
-  (** {1:down Down's private area} *)
-
+  (** OCaml Toplevel API *)
   module type TOP = sig
     val readline : (string -> bytes -> int -> int * bool) ref
     val exec_phrase : print_result:bool -> string -> (bool, exn) result
@@ -103,7 +100,7 @@ module Private : sig
   end
 
   val set_top : (module TOP) -> unit
-  (** [set_top t] sets the toplevel implementation to [t]. *)
+  (** [set_top t] sets the implementation of the OCaml toplevel to [t]. *)
 end
 
 (*---------------------------------------------------------------------------
