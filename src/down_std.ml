@@ -533,6 +533,7 @@ end
 module Fmt = struct
   type 'a t = Format.formatter -> 'a -> unit
   let pf = Format.fprintf
+  let pr = Format.printf
   let kpf = Format.kfprintf
   let str = Format.asprintf
   let string = Format.pp_print_string

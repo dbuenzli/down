@@ -5,8 +5,8 @@
 
 open Down_std
 
-(* Accessing the toploop API functionality regardless of ocaml or ocamlnat.
-   Works around https://github.com/ocaml/ocaml/issues/7589 pt 4. *)
+(* Access toploop API functionality regardless of ocaml or ocamlnat.
+   Works around 4. in https://github.com/ocaml/ocaml/issues/7589 *)
 
 module type TOP = sig
   val readline : (string -> bytes -> int -> int * bool) ref
@@ -23,14 +23,38 @@ module Nil = struct
   let use_silently _ _ = nil ()
 end
 
-(* Plugged to the right implementation by Down_top or Down_nattop *)
+(* Set to the right implementation by Down_top or Down_nattop *)
 let top : (module TOP) ref = ref (module Nil : TOP)
+
 let use_file ?(silent = false) file =
   let module Top = (val !top : TOP) in
   match silent with
   | true -> Top.use_silently Format.std_formatter file
   | false -> Top.use_file Format.std_formatter file
 
+(* Logging and formatting styles *)
+
+let style_err = [`Bold; `Fg `Red] (* match ocaml *)
+let style_warn = [`Bold; `Fg `Cyan] (* match ocaml *)
+let style_doc_section = [`Fg `Yellow]
+let style_code = [`Bold]
+let style_complete_suff = [`Fg `Magenta]
+let style_complete_info = [`Italic; `Faint]
+let style_last_indicator = [`Fg `Magenta]
+let style_key = [`Bold ]
+let style_prompt = [`Fg `Green ]
+let style_prompt_inactive = (`Faint :: style_prompt)
+let style_prompt_recording = [`Fg `Cyan ]
+let style_prompt_recording_inactive = (`Faint :: style_prompt_recording)
+let pp_error = Fmt.tty style_err Fmt.string
+let pp_warn = Fmt.tty  style_warn Fmt.string (* match ocaml *)
+let pp_doc_section = Fmt.tty style_doc_section Fmt.string
+let pp_code = Fmt.tty style_code Fmt.string
+let pp_faint = Fmt.tty [`Faint] Fmt.string
+let log_error fmt = Fmt.pr ("%a: " ^^ fmt ^^ "@.") pp_error "Error"
+let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
+let log_disabled fmt =
+  Fmt.pr ("%a: Down %%VERSION%% disabled. " ^^ fmt ^^ "@.") pp_warn "Warning"
 
 (* Text made of entries separated by a special line. *)
 
@@ -215,16 +239,6 @@ module Pstring = struct
     loop p.s (String.length p.s - 1) p.cursor 0 margin_w 0 margin_w 0
 end
 
-(* Down logging *)
-
-let _log style fmt =
-  let down style = Tty.styled_str Tty.cap style "Down: " in
-  Format.kasprintf (fun s -> Tty.output ((down style) ^ s)) (fmt ^^ "\r\n")
-
-let log fmt = _log [`Bold; `Fg `Yellow] fmt
-let log_error fmt = _log [`Bold; `Fg `Red] fmt
-let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
-
 (* History *)
 
 module History = struct
@@ -329,7 +343,8 @@ module Session = struct
     Result.bind (File.exists file) @@ function
     | true -> Ok s
     | false ->
-        Error (Fmt.str "No session '%s' found. See 'Down.Session.list ()'." n)
+        Error (Fmt.str "No session %a found, \
+                        see %a" pp_code n pp_code "Down.Session.list ()")
 
   let last_name () =
     log_on_error ~use:None @@
@@ -337,26 +352,27 @@ module Session = struct
     | None -> Ok None | Some (n, _) -> Ok (Some n)
 
   let list () =
+    let pp_last ppf last =
+      if not last then () else
+      Fmt.pf ppf "(%a) " (Fmt.tty style_last_indicator Fmt.string) "last"
+    in
     let pp_session ~last ppf (n, path) =
-      let last = last = n in
-      Fmt.pf ppf "@[<h>%a %s%a@]"
-        Fmt.(tty (if last then [`Bold; `Fg `Green] else [`Bold]) string) n
-        (if last then "(last) " else "")
-        Fmt.(tty [`Faint] string) path
+      Fmt.pf ppf "@[<h>%a %a%a@]" pp_code n pp_last (last = n) pp_faint path
     in
     let pp_session_list ~last ppf ss =
-      Fmt.pf ppf "  @[<v>%a:@, @[<v>%a@]@]@."
-        (Fmt.tty [`Fg `Yellow] Fmt.string) "Available sessions"
-        (Fmt.list (pp_session ~last)) ss
+      Fmt.pf ppf "  @[<v>@,%a@,@]" (Fmt.list (pp_session ~last)) ss
+    in
+    let pp_none ppf dir =
+      Fmt.pf ppf "  @[<v>@,No session found in %a@,@]" pp_faint dir
     in
     log_on_error ~use:() @@
     Result.bind (dir ()) @@ fun dir ->
     Result.bind (last_session ()) @@ fun last ->
     Result.bind (sessions_of_dir dir) @@ function
-    | [] -> Ok (log "No session found.")
+    | [] -> Ok (Fmt.pr "%a@." pp_none dir)
     | ss ->
         let last = match last with None -> "" | Some (last, _) -> last in
-        Ok (pp_session_list ~last Format.std_formatter ss)
+        Ok (Fmt.pr "%a@." (pp_session_list ~last) ss)
 
   let load ?silent n =
     log_on_error ~use:() @@
@@ -364,7 +380,8 @@ module Session = struct
     match use_file ?silent file with
     | true -> set_last_session n
     | false ->
-        Error (Fmt.str "Use 'Down.Session.edit \"%s\";;' to correct session." n)
+        Error (Fmt.str "Use %a to correct errors." pp_code
+                 (Fmt.str "Down.Session.edit %S" n))
 
   let edit n =
     log_on_error ~use:() @@
@@ -377,7 +394,8 @@ module Session = struct
         Editor.edit_file file
 
   let err_exists n =
-    Fmt.str "Session '%s' exists. Use '~replace:true' to overwrite." n
+    Fmt.str "Session %a exists, specify %a to overwrite."
+      pp_code n pp_code "~replace:true"
 
   let of_file ?(replace = false) ~file n =
     log_on_error ~use:() @@
@@ -400,14 +418,10 @@ module Session = struct
   let recorded () = List.rev !_recorded
   let rem_last_recorded () = _recorded := List.tl !_recorded
   let record () = match !recording with
-  | true -> rem_last_recorded (); log "Phrases are already being recorded."
-  | false -> recording := true; log "%s" "Phrases are now recorded."
+  | true -> rem_last_recorded ()
+  | false -> recording := true
 
-  let stop_msg = "Phrases are no longer recorded."
-  let stop () = match !recording with
-  | true -> rem_last_recorded (); recording := false; log "%s" stop_msg
-  | false -> log_error "Phrases were not recorded."
-
+  let stop () = if !recording then (rem_last_recorded (); recording := false)
   let revise () =
     if !recording then rem_last_recorded ();
     log_on_error ~use:() @@
@@ -416,10 +430,9 @@ module Session = struct
     Ok (set_recorded (of_string s))
 
   let save ?(replace = false) n =
-    if !recording then (rem_last_recorded (); recording := false);
-    log_on_error ~use:() @@
+    stop (); log_on_error ~use:() @@
     match recorded () with
-    | [] -> Ok (log "No phrase to save.")
+    | [] -> Error "No phrase to save."
     | ps ->
         Result.bind (get_session n) @@ fun (n, file) ->
         Result.bind (File.exists file) @@ function
@@ -429,11 +442,9 @@ module Session = struct
             Ok (set_recorded [])
 
   let append n =
-    if !recording then (rem_last_recorded (); recording := false);
-    log_on_error ~use:() @@
-    Result.map_error (Fmt.str "Session append failed: %s") @@
+    stop (); log_on_error ~use:() @@
     match recorded () with
-    | [] -> Ok (log "No phrase to append.")
+    | [] -> Error "No phrase to append."
     | ps ->
         Result.bind (get_session n) @@ fun (_, file) ->
         Result.bind (File.exists file) @@ function
@@ -552,7 +563,7 @@ module Prompt = struct
   let ding p = p.output Tty.ding
   let newline p = p.output Tty.newline
   let error p fmt =
-    let error = Tty.styled_str Tty.cap [`Bold; `Fg `Red] "Error" in
+    let error = Tty.styled_str Tty.cap style_err "Error" in
     let k msg = p.output (Printf.sprintf "\r\n%s: %s\r\n" error msg) in
     Format.kasprintf k fmt
 
@@ -573,8 +584,12 @@ module Prompt = struct
   let margin = "  "
   let nl_margin = "\r\n  "
   let render_prompt ~active ~recording =
-    let style = if recording then [`Fg `Cyan] else [`Fg `Green] in
-    let style = if active then style else (`Faint :: style) in
+    let style = match recording with
+    | false -> if active then style_prompt else style_prompt_inactive
+    | true ->
+        if active then style_prompt_recording else
+        style_prompt_recording_inactive
+    in
     Tty.styled_str Tty.cap style prompt
 
   let render_ui ?(active = true) p =
@@ -596,9 +611,7 @@ module Prompt = struct
       let blen = String.length c in
       if blen = 0 then "" else
       let sty sty s = Tty.styled_str Tty.cap sty s in
-      let suf_style = [`Fg `Magenta] in
-      let rst_style = [`Italic; `Faint] in
-      if c.[0] = ' ' then sty rst_style c else
+      if c.[0] = ' ' then sty style_complete_info c else
       match String.index c '\t' with
       | exception Not_found -> c (* should not happen but be robust *)
       | tab ->
@@ -607,7 +620,8 @@ module Prompt = struct
           let pre = String.sub c 0 suf_start in
           let suf = String.sub c suf_start (tab - suf_start) in
           let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
-          Printf.sprintf "  %s%s%s" pre (sty suf_style suf) (sty rst_style rst)
+          Printf.sprintf "  %s%s%s"
+            pre (sty style_complete_suff suf) (sty style_complete_info rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
     render_ui ~active:false p;
@@ -736,7 +750,7 @@ module Prompt = struct
     "edit input with external program (VISUAL or EDITOR env var)" ]
 
   let pp_cmd ppf (is, _, doc) =
-    let pp_is = Fmt.tty [`Bold] (Fmt.(list ~sep:sp Tty.pp_input)) in
+    let pp_is = Fmt.tty style_key (Fmt.(list ~sep:sp Tty.pp_input)) in
     Fmt.pf ppf "@[%a  @[%a@]@]" pp_is is Fmt.text doc
 
   let cmd_trie =
@@ -797,7 +811,8 @@ module Complete = struct
     | Error _ as e -> e
     | Ok true -> Ok ()
     | Ok false ->
-        Error "Completion needs ocp-index. Try 'opam install ocp-index'."
+        Error (Fmt.str "Completion needs ocp-index. Try '%a'."
+                 pp_code "opam install ocp-index'")
     end
 
   let complete_cmd token = ["ocp-index"; "complete"; "-f"; "%q \t %t"; token ]
@@ -864,11 +879,16 @@ let down_readline p =
       | true -> let r = loop p in ignore (Stdin.set_raw_mode false); r
 
 external sigwinch : unit -> int = "ocaml_down_sigwinch"
+
+let pp_announce ppf () =
+  Fmt.pf ppf "%a %%VERSION%% loaded. Tab complete %a for more info.@."
+    pp_doc_section "Down" pp_code "Down.help ()"
+
 let install_readline () = match Tty.cap with
-| `None -> log_error "Disabled. No ANSI terminal capability detected."
+| `None -> log_disabled "No ANSI terminal capability detected."
 | `Ansi ->
     match Stdin.set_raw_mode true with
-    | false -> log_error "Disabled. Raw mode setup for stdin failed."
+    | false -> log_disabled "Raw mode setup for stdin failed."
     | true ->
         ignore (Stdin.set_raw_mode false);
         let () =
@@ -887,32 +907,39 @@ let install_readline () = match Tty.cap with
         in
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.readline;
-        Top.readline := down_readline p
+        Top.readline := down_readline p;
+        Fmt.pr "%a@." pp_announce ()
 
 (* Help *)
 
 let help () =
-  let pp_help ppf () =
-    Fmt.pf ppf "@[<v>%a:@, @[<v>%a@]@]@."
-      (Fmt.tty [`Fg `Yellow] Fmt.string) "Available key bindings"
+  let pp_manual ppf () =
+    Fmt.pf ppf "@[Consult '%a' for the manual and API.@]"
+      pp_code "odig doc down"
+  in
+  let pp_session ppf () =
+    Fmt.pf ppf
+      "%a:@,Support for sessions is in the %a module.@,\
+            Use '%a' to list sessions."
+      pp_doc_section "Sessions" pp_code "Down.Session"
+      pp_code "Down.Session.list ()"
+  in
+  let pp_key_bindings ppf () =
+    Fmt.pf ppf "%a:@,@[<v>%a@]" pp_doc_section "Key bindings"
       (Fmt.list Prompt.pp_cmd) Prompt.cmds
+  in
+  let pp_help ppf () =
+    Fmt.pf ppf "  @[<v>@,%a@,%a@,@,%a@,@,%a@,@]@."
+      pp_doc_section "Welcome to Down!" pp_manual () pp_session ()
+      pp_key_bindings ()
   in
   pp_help Format.std_formatter ()
 
 (* Private *)
 
-let pp_announce ppf () =
-  Format.fprintf ppf
-    "%a %%VERSION%% loaded. Tab complete %a for more info.@."
-    Fmt.(tty [`Fg `Yellow] string) "Down"
-    Fmt.(tty [`Bold] string) "Down.help ()"
-
 module Private = struct
-
   module type TOP = TOP
-  let set_top t =
-    top := t; install_readline ();
-    pp_announce Format.std_formatter ()
+  let set_top t = top := t; install_readline ()
 end
 
 (*---------------------------------------------------------------------------

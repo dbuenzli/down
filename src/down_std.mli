@@ -320,6 +320,9 @@ module Fmt : sig
   val pf : Format.formatter -> ('a, Format.formatter, unit) format -> 'a
   (** [pf] is {!Format.fprintf} *)
 
+  val pr : ('a, Format.formatter, unit) format -> 'a
+  (** [pf] is {!Format.printf} *)
+
   val kpf :
     (Format.formatter -> 'a) ->
     Format.formatter -> ('b, Format.formatter, unit, 'a) format4 -> 'b
