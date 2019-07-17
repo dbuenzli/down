@@ -332,7 +332,7 @@ module Session = struct
     | false ->
         Error (Fmt.str "No session '%s' found. See 'Down.Session.list ()'." n)
 
-  let last () =
+  let last_name () =
     log_on_error ~use:None @@
     Result.bind (last_session ()) @@ function
     | None -> Ok None | Some (n, _) -> Ok (Some n)
@@ -393,14 +393,14 @@ module Session = struct
     log_on_error ~use:() @@
     Result.bind (get_existing_session n) @@ fun (_, f) -> File.delete f
 
-  (* Recording sessions. *)
+  (* Recording. *)
 
   let recording : bool ref = ref false
   let _recorded : string list ref = ref []
   let set_recorded phrases = _recorded := List.rev phrases
   let recorded () = List.rev !_recorded
   let rem_last_recorded () = _recorded := List.tl !_recorded
-  let start () = match !recording with
+  let record () = match !recording with
   | true -> rem_last_recorded (); log "Phrases are already being recorded."
   | false -> recording := true; log "%s" "Phrases are now recorded."
 
@@ -474,7 +474,7 @@ module Session = struct
             (* Another toplevel process may have written meanwhile... *)
             File.set_content ~file (to_string (of_string contents @ ps))
 
-  (* Stepping sessions. *)
+  (* Stepping. *)
 
   let steps : string array ref = ref [||]
   let step = ref (-1)
@@ -493,6 +493,9 @@ module Session = struct
     Result.bind (File.read file) @@ fun contents ->
     steps := Array.of_list (of_string contents);
     step := (-1); Ok ()
+
+  let next_step () = ignore (step_next ())
+  let prev_step () = ignore (step_prev ())
 end
 
 (* Prompting *)

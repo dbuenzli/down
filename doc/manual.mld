@@ -114,7 +114,7 @@ Another way of creating a session is to record phrases and eventually
 save them in a session. To start recording a session use:
 
 {[
-# Down.Session.start ()   (* start recording input phrases *)
+# Down.Session.record ()   (* start recording input phrases *)
 ]}
 
 Each phrase subsequently input is added to a list of recorded

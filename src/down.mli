@@ -59,8 +59,8 @@ module Session : sig
 
   (** {1:record Recording} *)
 
-  val start : unit -> unit
-  (** [start] starts recording phrases. *)
+  val record : unit -> unit
+  (** [record] starts recording phrases. *)
 
   val stop : unit -> unit
   (** [stop] stops recording phrases. *)
@@ -83,6 +83,14 @@ module Session : sig
   val steps : name -> unit
   (** [steps ()] loads a session for stepping through manually via
       [C-x C-p] and [C-x C-n]. *)
+
+  val next_step : unit -> unit
+  (** [next_step ()] moves to the next step of the stepped session.
+      Usually you do this via [C-x C-n]. *)
+
+  val prev_step : unit -> unit
+  (** [prev_step ()] moves the previous step of the stepped session.
+      Usually you do this via [C-x C-p]. *)
 end
 
 (** Private.
