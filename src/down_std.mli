@@ -233,8 +233,8 @@ module Tty : sig
   (** The type for ANSI colors. *)
 
   type style =
-  [ `Bold | `Faint | `Italic | `Underline | `Reverse | `Fg of color
-  | `Bg of color ]
+  [ `Bold | `Faint | `Italic | `Underline | `Reverse
+  | `Fg of [ color | `Hi of color] | `Bg of [ color | `Hi of color] ]
   (** The type for ANSI styles. *)
 
   val styled_str : cap -> style list -> string -> string
