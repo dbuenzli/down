@@ -9,16 +9,14 @@ open Down_std
    Works around 4. in https://github.com/ocaml/ocaml/issues/7589 *)
 
 module type TOP = sig
-  val readline : (string -> bytes -> int -> int * bool) ref
-  val exec_phrase : print_result:bool -> string -> (bool, exn) result
+  val read_interactive_input : (string -> bytes -> int -> int * bool) ref
   val use_file : Format.formatter -> string -> bool
   val use_silently : Format.formatter -> string -> bool
 end
 
 module Nil = struct
   let nil () = invalid_arg "Down.Private.set_top not called"
-  let readline = ref (fun _ _ _ -> nil ())
-  let exec_phrase ~print_result _ = nil ()
+  let read_interactive_input = ref (fun _ _ _ -> nil ())
   let use_file _ _ = nil ()
   let use_silently _ _ = nil ()
 end
@@ -887,8 +885,8 @@ let install_readline () = match Tty.cap with
         let readc = Stdin.readc in
         let p = Prompt.create ~complete ~readc () in
         let module Top = (val !top : TOP) in
-        original_ocaml_readline := !Top.readline;
-        Top.readline := down_readline p;
+        original_ocaml_readline := !Top.read_interactive_input;
+        Top.read_interactive_input := down_readline p;
         History.load ();
         Session.load_unsaved ();
         at_exit History.save;

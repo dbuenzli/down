@@ -3,22 +3,7 @@
    Distributed under the ISC license, see terms at the end of the file.
   ---------------------------------------------------------------------------*)
 
-module Top = struct
-  let readline = Toploop.read_interactive_input
-  let exec_phrase ~print_result s =
-    try
-      let lex = Lexing.from_string s in
-      let phrase = !(Toploop.parse_toplevel_phrase) lex in
-      Ok (Toploop.execute_phrase print_result Format.std_formatter phrase)
-    with exn ->
-      (* We are hitting https://github.com/ocaml/ocaml/issues/6704 here *)
-      Error exn
-
-  let use_file = Toploop.use_file
-  let use_silently = Toploop.use_silently
-end
-
-let () = if !Sys.interactive then (Down.Private.set_top (module Top))
+let () = if !Sys.interactive then (Down.Private.set_top (module Toploop))
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 The down programmers

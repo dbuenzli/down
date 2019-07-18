@@ -105,8 +105,7 @@ module Private : sig
 
   (** OCaml Toplevel API *)
   module type TOP = sig
-    val readline : (string -> bytes -> int -> int * bool) ref
-    val exec_phrase : print_result:bool -> string -> (bool, exn) result
+    val read_interactive_input : (string -> bytes -> int -> int * bool) ref
     val use_file : Format.formatter -> string -> bool
     val use_silently : Format.formatter -> string -> bool
   end
