@@ -869,7 +869,7 @@ let down_readline p =
 external sigwinch : unit -> int = "ocaml_down_sigwinch"
 
 let pp_announce ppf () =
-  Fmt.pf ppf "%a %%VERSION%% loaded. Tab complete %a for more info.@."
+  Fmt.pf ppf "%a %%VERSION%% loaded. Tab complete %a for more info."
     pp_doc_section "Down" pp_code "Down.help ()"
 
 let install_readline () = match Tty.cap with
