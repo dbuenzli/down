@@ -701,7 +701,9 @@ module Prompt = struct
     [`Arrow `Left], kont prev_char, "move to previous character";
     [`Arrow `Right], kont next_char, "move to next character";
     [`Meta 0x62 (* b *)], kont prev_word, "move to start of previous word";
+    [`Ctrl (`Arrow `Left)], kont prev_word, "move to start of previous word";
     [`Meta 0x66 (* f *)], kont next_word, "move after the end of next word";
+    [`Ctrl (`Arrow `Right)], kont next_word, "move after the end of next word";
     [`Ctrl (`Key 0x70) (* p *)], kont prev_line, "move to previous line";
     [`Ctrl (`Key 0x6E) (* n *)], kont next_line, "move to next line";
     [`Arrow `Up], kont prev_history, "previous history entry";
