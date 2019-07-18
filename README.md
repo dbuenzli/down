@@ -35,7 +35,7 @@ Simply run `ocaml` and load the library:
 > ocaml
 ...
 # #use "down.top";;
-Down loaded. Tab complete Down.help () for more info.
+Down loaded. Type Down.help () for more info.
 # List.con^t
   List.cons : 'a -> 'a list -> 'a list
   List.concat : 'a list list -> 'a list

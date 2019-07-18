@@ -12,21 +12,23 @@ Consult the {{!page-manual}manual}.
 
 Simply run [ocaml] and load the library:
 
-{[
+{v
 > ocaml
 ...
 # #use "down.top";;
-Down loaded. Tab complete Down.help () for more info.
+Down loaded. Type Down.help () for more info.
 # List.con^t
   List.cons : 'a -> 'a list -> 'a list
   List.concat : 'a list list -> 'a list
 # List.con
-]}
+v}
 
 You can add this [#use] invocation to your [~/.ocamlinit] file.
 
 For [ocamlnat] you will likely have to invoke it with [-noinit] and
 you must [#use "down.nattop"].
+
+More in the {{!page-manual}manual}.
 
 {1:api API}
 

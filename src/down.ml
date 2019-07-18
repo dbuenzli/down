@@ -705,8 +705,8 @@ module Prompt = struct
     [`Arrow `Right], kont next_char, "move to next character";
     (**)
     [`Meta 0x62 (* b *)], kont prev_word, "move to start of previous word";
-    [`Ctrl (`Arrow `Left)], kont prev_word, "move to start of previous word";
     [`Meta 0x66 (* f *)], kont next_word, "move after the end of next word";
+    [`Ctrl (`Arrow `Left)], kont prev_word, "move to start of previous word";
     [`Ctrl (`Arrow `Right)], kont next_word, "move after the end of next word";
     (**)
     [`Ctrl (`Key 0x70) (* p *)], kont prev_line, "move to previous line";
@@ -733,9 +733,9 @@ module Prompt = struct
     [`Ctrl (`Key 0x77) (* w *)], kont kill_region, "kill region";
     (**)
     [`Shift (`Arrow `Up)], kont session_prev_step, "previous session step";
+    [`Shift (`Arrow `Down)], kont session_next_step, "next session step";
     [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x70) (* p *)],
     kont session_prev_step, "previous session step";
-    [`Shift (`Arrow `Down)], kont session_next_step, "next session step";
     [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x6E) (* n *)],
     kont session_next_step, "next session step";
     (**)
@@ -905,7 +905,7 @@ let install_sigwinch_interrupt () =
   Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ()))
 
 let pp_announce ppf () =
-  Fmt.pf ppf "%a %%VERSION%% loaded. Tab complete %a for more info."
+  Fmt.pf ppf "%a %%VERSION%% loaded. Type %a for more info."
     pp_doc_section "Down" pp_code "Down.help ()"
 
 let install_down () = match Tty.cap with

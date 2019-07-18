@@ -1,9 +1,10 @@
 # Testing toplevel
 
-There's an empty `.ocamlinit` file at the root to disable
+Add an empty `.ocamlinit` file at the root of the distribution to disable
 `~/.ocamlinit`. Then it's just a mater of:
 
 ```
+touch .ocamlinit
 brzo ocaml --top 
 ```
 
