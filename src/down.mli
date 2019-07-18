@@ -64,10 +64,10 @@ module Session : sig
   (** [revise ()] edits recorded phrases. *)
 
   val save : ?replace:bool -> name -> unit
-  (** [save s] clears and saves recorded phrases to [s] and stops
-      recording. The function errors and the recorded phrases are kept
-      intact if [s] exists; unless [replace] is [true] (defaults to
-      [false]). *)
+  (** [save s] saves recorded phrases to [s], stops recording and
+      clears the recorded phrases. The function errors and the
+      recorded phrases are kept intact if [s] exists; unless [replace]
+      is [true] (defaults to [false]). See also {!append}. *)
 
   val append : name -> unit
   (** [append s] is like {!save} except it appends to [s] or creates

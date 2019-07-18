@@ -8,7 +8,7 @@ toplevel (REPL).
 To use Down in [ocaml] simply issue this phrase:
 
 {[
-# #use "down.top"   (* or "down.nattop" for the native toplevel *)
+# #use "down.top"   (* or "down.nattop" in ocamlnat *)
 ]}
 
 You can add this line to your [~/.ocamlinit] file.
@@ -58,9 +58,9 @@ At the moment completion is provided by
 {{:https://github.com/OCamlPro/ocp-index}[ocp-index]}.
 
 The support is a bit crude, it is planned to improve it in the
-future. It is context unaware and only library symbols are completed
-regardless whether those are loaded or not. In particular symbols
-defined by inputing phrases are not yet completable.
+future. It is context and [open] unaware and only library symbols are completed
+regardless whether those are loaded or not. In particular at the moment
+symbols defined by inputing phrases are not completable.
 
 {1:sessions Sessions}
 
@@ -117,32 +117,31 @@ invocation. For example:
 {2:recording Recording phrases}
 
 Another way of creating a session is to record phrases and eventually
-save them in a session. To start recording a session use:
+save them in a session. To start recording phrases use:
 
 {[
 # Down.Session.record ()   (* start recording input phrases *)
 ]}
 
-Each phrase subsequently input is added to a list of recorded
-phrases. Unfortunately due to toplevel API limitations also those
-phrases that result in errors. This is why you may want to revise the
-list of recorded phrases from time to time to make them coherent:
+Each phrase subsequently input is added to the recorded
+phrases. Unfortunately due to toplevel API limitations, phrases that
+error are also recorded. This is why you may want to revise the
+recorded phrases from time to time to make them coherent:
 
 {[
-# Down.Session.revise ()   (* revise the list of recorded phrases *)
+# Down.Session.revise ()   (* revise recorded phrases *)
 ]}
 
-Once you are done you can save the buffer of recorded phrases with
-[save]:
+Once you are done you can save the recorded phrases with [save]:
 
 {[
 # Down.Session.save "mysetup"   (* save recorded phrases *)
 ]}
 
-This stops session recording and clears and saves the list of recorded
-phrases in a new session ["mysetup"]. The [append] function works like
-[save] but appends the list of recorded phrases to a session or
-creates it if it does not exist.
+This saves the recorded phrases in a new session ["mysetup"], stops
+recording and clears the recorded phrases. The [append] function works
+like [save] but appends the recorded phrases to a session or creates
+it if it does not exist.
 
 {[
 # Down.Session.append "mysetup"   (* like save but appends *)
@@ -152,9 +151,8 @@ Session ["mysetup"] can now be [load]ed to play back the recorded
 phrases. If the sequence happens to have an error when you load it,
 simply [edit] the session to correct it and try again.
 
-If you forget to save the list of recorded phrases they should be
-available to [revise], [save] or [append] the next time you run
-[ocaml].
+If you forget to save the recorded phrases they should be available to
+[revise], [save] or [append] the next time you run [ocaml].
 
 {2:stepping Stepping phrases}
 

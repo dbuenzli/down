@@ -33,6 +33,7 @@ Simply run `ocaml` and load the library:
 
 ```
 > ocaml
+...
 # #use "down.top";;
 Down loaded. Tab complete Down.help () for more info.
 # List.con^t
