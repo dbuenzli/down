@@ -847,7 +847,7 @@ let down_readline p =
       rem := rem'; (len, false)
   | None ->
       let rec loop p = match Prompt.ask p with
-      | `Eoi -> History.save (); Session.save_unsaved (); (0, true)
+      | `Eoi -> (0, true)
       | `Break -> Tty.output "Interrupted.\r\n"; loop p
       | `Answer ans ->
           let len, rem' = blit_toploop_buf ans 0 b len in
@@ -887,6 +887,8 @@ let install_readline () = match Tty.cap with
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.readline;
         Top.readline := down_readline p;
+        at_exit History.save;
+        at_exit Session.save_unsaved;
         Fmt.pr "%a@." pp_announce ()
 
 (* Help *)
