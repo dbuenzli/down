@@ -21,8 +21,8 @@ let () = match Tty.cap with
         | None -> print_endline "EOF Bye!\r"
         | Some i ->
             match i with
-            | `Ctrl 0x63 (* c *) -> print_endline "Bye.\r"
-            | `Ctrl 0x64 (* d *) -> print_endline "EOF Bye.\r"
+            | `Ctrl (`Key 0x63) (* c *) -> print_endline "Bye.\r"
+            | `Ctrl (`Key 0x64) (* d *) -> print_endline "EOF Bye.\r"
             | _ ->
                 print_endline (Format.asprintf "%a\r" Tty.pp_input i); loop ()
         in

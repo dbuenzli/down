@@ -286,11 +286,13 @@ module Tty : sig
 
   (** {1:input Input} *)
 
+  type arrow = [ `Up | `Down | `Left | `Right ]
   type input =
-  [ `Arrow of [ `Up | `Down | `Left | `Right ] | `Backspace | `Bytes of string
-  | `Ctrl of int | `Delete | `End | `Enter | `Escape | `Function of int
-  | `Home | `Meta of int | `Page of [ `Up | `Down ] | `Tab
-  | `Unknown of string ]
+  [ `Arrow of arrow | `Backspace | `Bytes of string
+  | `Ctrl of [ `Key of int | `Arrow of arrow]
+  | `Delete | `End | `Enter | `Escape | `Function of int
+  | `Home | `Meta of int | `Page of [ `Up | `Down ]
+  | `Shift of [`Arrow of arrow ] | `Tab | `Unknown of string ]
   (** The type for user input. *)
 
   val input : (unit -> int option) -> input option

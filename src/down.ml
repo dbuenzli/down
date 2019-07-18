@@ -694,38 +694,40 @@ module Prompt = struct
   let cmds : (Tty.input list * cmd * string) list = [
     [`Home], kont soi, "move to start of input";
     [`End], kont eoi, "move to end of input";
-    [`Ctrl 0x61 (* a *)], kont sol, "move to start of line";
-    [`Ctrl 0x65 (* e *)], kont eol, "move to end of line";
-    [`Ctrl 0x62 (* b *)], kont prev_char, "move to previous character";
-    [`Ctrl 0x66 (* f *)], kont next_char, "move to next character";
+    [`Ctrl (`Key 0x61) (* a *)], kont sol, "move to start of line";
+    [`Ctrl (`Key 0x65) (* e *)], kont eol, "move to end of line";
+    [`Ctrl (`Key 0x62) (* b *)], kont prev_char, "move to previous character";
+    [`Ctrl (`Key 0x66) (* f *)], kont next_char, "move to next character";
     [`Arrow `Left], kont prev_char, "move to previous character";
     [`Arrow `Right], kont next_char, "move to next character";
     [`Meta 0x62 (* b *)], kont prev_word, "move to start of previous word";
     [`Meta 0x66 (* f *)], kont next_word, "move after the end of next word";
-    [`Ctrl 0x70 (* p *)], kont prev_line, "move to previous line";
-    [`Ctrl 0x6E (* n *)], kont next_line, "move to next line";
+    [`Ctrl (`Key 0x70) (* p *)], kont prev_line, "move to previous line";
+    [`Ctrl (`Key 0x6E) (* n *)], kont next_line, "move to next line";
     [`Arrow `Up], kont prev_history, "previous history entry";
     [`Arrow `Down], kont next_history, "next history entry";
     [`Backspace;], kont delete_prev_char, "delete previous character";
-    [`Ctrl 0x64 (* d *)], ctrl_d,
+    [`Ctrl (`Key 0x64) (* d *)], ctrl_d,
     "delete next character or exit if input is empty";
-    [`Ctrl 0x63 (* c *)], break, "abandon input";
-    [`Ctrl 0x60 (* space ? *)], kont set_mark, "set the mark";
-    [`Ctrl 0x78 (* x *);`Ctrl 0x78 (* x *)], kont swap_cursor_and_mark,
-    "swap cursor and mark";
-    [`Ctrl 0x78 (* x *);`Ctrl 0x6E (* n *)], kont session_next_step,
+    [`Ctrl (`Key 0x63) (* c *)], break, "abandon input";
+    [`Ctrl (`Key 0x60) (* space ? *)], kont set_mark, "set the mark";
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x78 )(* x *)],
+    kont swap_cursor_and_mark, "swap cursor and mark";
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x6E) (* n *)],
+    kont session_next_step,
     "next session step";
-    [`Ctrl 0x78 (* x *);`Ctrl 0x70 (* p *)], kont session_prev_step,
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x70) (* p *)],
+    kont session_prev_step,
     "previous session step";
-    [`Ctrl 0x79 (* y *)], kont yank, "yank";
-    [`Ctrl 0x6B (* k *)], kont kill_to_eol, "kill to end of line";
-    [`Ctrl 0x75 (* k *)], kont kill_to_sol, "kill to start of line";
+    [`Ctrl (`Key 0x79) (* y *)], kont yank, "yank";
+    [`Ctrl (`Key 0x6B) (* k *)], kont kill_to_eol, "kill to end of line";
+    [`Ctrl (`Key 0x75) (* k *)], kont kill_to_sol, "kill to start of line";
     [`Meta 0x7F ], kont kill_prev_word, "kill to start of previous word";
     [`Meta 0x64 (* d *)], kont kill_next_word, "kill to end of next word";
-    [`Ctrl 0x77 (* w *)], kont kill_region, "kill region";
-    [`Ctrl 0x6C (* l *)], kont clear_screen, "clear screen";
+    [`Ctrl (`Key 0x77) (* w *)], kont kill_region, "kill region";
+    [`Ctrl (`Key 0x6C) (* l *)], kont clear_screen, "clear screen";
     [`Tab], kont complete, "complete identifier";
-    [`Ctrl 0x78 (* x *);`Ctrl 0x65 (* e *)], kont edit,
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x65) (* e *)], kont edit,
     "edit input with external program (VISUAL or EDITOR env var)" ]
 
   let pp_cmd ppf (is, _, doc) =

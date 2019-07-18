@@ -420,10 +420,13 @@ module Tty = struct
 
   (* Terminal input *)
 
+  type arrow = [ `Up | `Down | `Left | `Right ]
   type input =
   [ `Arrow of [ `Up | `Down | `Left | `Right ] | `Backspace | `Bytes of string
-  | `Ctrl of int | `Delete | `End | `Enter | `Escape | `Function of int | `Home
-  | `Meta of int | `Page of [ `Up | `Down ] | `Tab | `Unknown of string ]
+  | `Ctrl of [ `Key of int | `Arrow of arrow] | `Delete | `End | `Enter
+  | `Escape | `Function of int | `Home | `Meta of int
+  | `Page of [ `Up | `Down ] | `Shift of [`Arrow of arrow ] | `Tab
+  | `Unknown of string ]
 
   let pp_input ppf i =
     let pp = Format.fprintf in
@@ -442,7 +445,8 @@ module Tty = struct
         if String.length b = 1 && Char.code b.[0] < 0x20
         then pp ppf "\"\\x%02X\"" (Char.code b.[0])
         else pp ppf "\"%s\"" b
-    | `Ctrl c -> pp ppf "C-%a" pp_char c
+    | `Ctrl (`Key c) -> pp ppf "C-%a" pp_char c
+    | `Ctrl (`Arrow dir) -> pp ppf "C-%s" (dir_to_string dir)
     | `Delete -> pp ppf "delete"
     | `End -> pp ppf "end"
     | `Enter -> pp ppf "enter"
@@ -452,9 +456,10 @@ module Tty = struct
     | `Meta c -> pp ppf "M-%a" pp_char c
     | `Page dir -> pp ppf "page-%s" (dir_to_string dir)
     | `Tab -> pp ppf "tab"
+    | `Shift (`Arrow dir) -> pp ppf "shift-%s" (dir_to_string dir)
     | `Unknown s -> pp ppf "unknown (%S)" s
 
-  let read_esc readc = match readc () with
+  let read_esc readc : input = match readc () with
   | None -> `Escape
   | Some 0x5B (* '[' *) ->
       begin match readc () with
@@ -465,15 +470,36 @@ module Tty = struct
       | Some 0x44 -> `Arrow `Left
       | Some 0x46 -> `End
       | Some 0x48 -> `Home
-      | Some b when 0x30 <= b && b <= 0x39 ->
+      | Some 0x31 ->
+          let pre = "ESC[1" in
           begin match readc () with
-          | None -> `Unknown (strf "ESC[")
-          | Some 0x7E ->
-              begin match b with
-              | 0x33 -> `Delete
-              | c -> `Unknown (strf "ESC[%c~" (Char.chr c))
+          | None -> `Unknown pre
+          | Some 0x3B (* ; *) ->
+              begin match readc () with
+              | None -> `Unknown (strf "%s;" pre)
+              | Some (0x35 | 0x32 as m) ->
+                  let mk dir =
+                    if m = 0x35 then `Ctrl (`Arrow dir) else `Shift (`Arrow dir)
+                  in
+                  begin match readc () with
+                  | None -> `Unknown (strf "%s;%c" pre (Char.chr m))
+                  | Some 0x41 -> mk `Up
+                  | Some 0x42 -> mk `Down
+                  | Some 0x43 -> mk `Right
+                  | Some 0x44 -> mk `Left
+                  | Some b ->
+                      `Unknown (strf "%s;%c%c" pre (Char.chr m) (Char.chr b))
+                  end
+              | Some b -> `Unknown (strf "%s;%c" pre (Char.chr b))
               end
-          | Some b' -> `Unknown (strf "ESC[%c%c" (Char.chr b) (Char.chr b'))
+          | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
+          end
+      | Some 0x33 ->
+          let pre = "ESC[1" in
+          begin match readc () with
+          | None -> `Unknown pre
+          | Some 0x33 -> `Delete
+          | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
           end
       | Some b -> `Unknown (strf "ESC[%c" (Char.chr b))
       end
@@ -507,7 +533,7 @@ module Tty = struct
       | 0x0D -> `Enter
       | 0x1B -> read_esc readc
       | 0x7F | 0x08 -> `Backspace
-      | b when b <= 0x1F -> `Ctrl (b + 0x60)
+      | b when b <= 0x1F -> `Ctrl (`Key (b + 0x60))
       | b -> `Bytes (read_bytes readc b)
       in
       Some i
