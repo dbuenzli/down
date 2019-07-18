@@ -77,15 +77,15 @@ module Session : sig
 
   val steps : name -> unit
   (** [steps ()] loads a session for stepping through manually via
-      [C-x C-p] and [C-x C-n]. *)
+      [shift-{up,down}] (or [C-x C-{p,n}]). *)
 
   val next_step : unit -> unit
   (** [next_step ()] moves to the next step of the stepped session.
-      Usually you do this via [C-x C-n]. *)
+      Usually you do this via [shift-down] or [C-x C-n]. *)
 
   val prev_step : unit -> unit
   (** [prev_step ()] moves the previous step of the stepped session.
-      Usually you do this via [C-x C-p]. *)
+      Usually you do this via [shift-up] or [C-x C-p]. *)
 end
 
 (** Manage history. *)

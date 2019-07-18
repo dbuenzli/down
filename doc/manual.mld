@@ -165,10 +165,10 @@ of phrases on your prompt. To step through a session issue:
 # Down.Session.steps "mysession"   (* define the stepped session  *)
 ]}
 
-You can now use [C-x C-n] and [C-x C-p] to navigate and paste on your
-prompt the phrases of the session. Like in the {{!history}history}
-file, steps are delimited by [(**)] lines in session files. Here's a
-session with two steps:
+You can now use [shift-{up,down}] (or [C-x C-{n,p}]) to navigate and
+paste on your prompt the phrases of the session. Like in the
+{{!history}history} file, steps are delimited by [(**)] lines in
+session files. Here's a session with two steps:
 
 {[
 let rec fact = function

@@ -692,41 +692,52 @@ module Prompt = struct
   let break p = `Break
   let kont f p = f p; `Kont
   let cmds : (Tty.input list * cmd * string) list = [
+    (**)
     [`Home], kont soi, "move to start of input";
     [`End], kont eoi, "move to end of input";
+    (**)
     [`Ctrl (`Key 0x61) (* a *)], kont sol, "move to start of line";
     [`Ctrl (`Key 0x65) (* e *)], kont eol, "move to end of line";
+    (**)
     [`Ctrl (`Key 0x62) (* b *)], kont prev_char, "move to previous character";
     [`Ctrl (`Key 0x66) (* f *)], kont next_char, "move to next character";
     [`Arrow `Left], kont prev_char, "move to previous character";
     [`Arrow `Right], kont next_char, "move to next character";
+    (**)
     [`Meta 0x62 (* b *)], kont prev_word, "move to start of previous word";
     [`Ctrl (`Arrow `Left)], kont prev_word, "move to start of previous word";
     [`Meta 0x66 (* f *)], kont next_word, "move after the end of next word";
     [`Ctrl (`Arrow `Right)], kont next_word, "move after the end of next word";
+    (**)
     [`Ctrl (`Key 0x70) (* p *)], kont prev_line, "move to previous line";
     [`Ctrl (`Key 0x6E) (* n *)], kont next_line, "move to next line";
+    (**)
     [`Arrow `Up], kont prev_history, "previous history entry";
     [`Arrow `Down], kont next_history, "next history entry";
+    (**)
     [`Backspace;], kont delete_prev_char, "delete previous character";
     [`Ctrl (`Key 0x64) (* d *)], ctrl_d,
     "delete next character or exit if input is empty";
     [`Ctrl (`Key 0x63) (* c *)], break, "abandon input";
+    (**)
     [`Ctrl (`Key 0x60) (* space ? *)], kont set_mark, "set the mark";
     [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x78 )(* x *)],
     kont swap_cursor_and_mark, "swap cursor and mark";
-    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x6E) (* n *)],
-    kont session_next_step,
-    "next session step";
-    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x70) (* p *)],
-    kont session_prev_step,
-    "previous session step";
     [`Ctrl (`Key 0x79) (* y *)], kont yank, "yank";
+    (**)
     [`Ctrl (`Key 0x6B) (* k *)], kont kill_to_eol, "kill to end of line";
     [`Ctrl (`Key 0x75) (* k *)], kont kill_to_sol, "kill to start of line";
     [`Meta 0x7F ], kont kill_prev_word, "kill to start of previous word";
     [`Meta 0x64 (* d *)], kont kill_next_word, "kill to end of next word";
     [`Ctrl (`Key 0x77) (* w *)], kont kill_region, "kill region";
+    (**)
+    [`Shift (`Arrow `Up)], kont session_prev_step, "previous session step";
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x70) (* p *)],
+    kont session_prev_step, "previous session step";
+    [`Shift (`Arrow `Down)], kont session_next_step, "next session step";
+    [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x6E) (* n *)],
+    kont session_next_step, "next session step";
+    (**)
     [`Ctrl (`Key 0x6C) (* l *)], kont clear_screen, "clear screen";
     [`Tab], kont complete, "complete identifier";
     [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x65) (* e *)], kont edit,
