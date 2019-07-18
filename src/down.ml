@@ -58,15 +58,22 @@ let log_disabled fmt =
 
 module Phistory = struct
   type t = { prev : string list; focus : string; next : string list; }
-  let v prev = { prev; focus = ""; next = [] }
+  let v prev =
+    let add acc e = match String.trim e with "" -> acc | e -> e :: acc in
+    { prev = List.rev (List.fold_left add [] prev) ; focus = ""; next = [] }
+
   let empty = v []
   let push e es =
     if e = "" then es else match es with
     | e' :: _ when String.equal e e' -> es
     | es -> e :: es
 
-  let entries h = List.rev_append (push h.focus h.next) h.prev
+  let entries h =
+    let next = List.filter (fun s -> not (String.equal s "")) h.next in
+    List.rev_append (push h.focus next) h.prev
+
   let add h e = match String.trim e with "" -> h | e -> v (push e (entries h))
+  let restart h = v (entries h)
   let prev h current = match h.prev with
   | [] -> None
   | p :: ps ->
@@ -213,10 +220,11 @@ module History = struct
   let sep = "(**)"
   let h = ref (Phistory.v [])
   let add txt = h := Phistory.add !h txt
-  let next current = match Phistory.next !h current with
+  let restart () = h := Phistory.restart !h
+  let prev current = match Phistory.prev !h current with
   | None -> None | Some (h', txt) -> h := h'; Some txt
 
-  let prev current = match Phistory.prev !h current with
+  let next current = match Phistory.next !h current with
   | None -> None | Some (h', txt) -> h := h'; Some txt
 
   let file () =
@@ -755,7 +763,7 @@ module Prompt = struct
               | Some cmd ->
                   match cmd p with
                   | `Kont -> loop p cmd_trie
-                  | `Break -> return p; `Break
+                  | `Break -> History.restart (); return p; `Break
                   | `Eoi -> `Eoi
     in
     (reset p; resize p; loop p cmd_trie)
