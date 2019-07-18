@@ -57,37 +57,28 @@ let log_disabled fmt =
 (* Prompt history *)
 
 module Phistory = struct
-  type t = { prev : string list; current : string; next : string list; }
-  let v prev = { prev; current = ""; next = [] }
+  type t = { prev : string list; focus : string; next : string list; }
+  let v prev = { prev; focus = ""; next = [] }
   let empty = v []
   let push e es =
     if e = "" then es else match es with
     | e' :: _ when String.equal e e' -> es
     | es -> e :: es
 
-  let entries h = List.rev_append (push h.current h.next) h.prev
-  let add h entry = match String.trim entry with
-  | "" -> h
-  | entry ->
-      match entries h with
-      | [] -> v [entry]
-      | e :: _ as entries when String.equal entry e -> v entries
-      | es -> v (entry :: es)
-
+  let entries h = List.rev_append (push h.focus h.next) h.prev
+  let add h e = match String.trim e with "" -> h | e -> v (push e (entries h))
   let prev h current = match h.prev with
   | [] -> None
   | p :: ps ->
-      let next = push (String.trim current) (push h.current h.next) in
+      let next = push (String.trim current) (push h.focus h.next) in
       let next = if next = [] then [""] (* bottom can be empty *) else next in
-      Some ({ prev = ps; current = p; next; }, p)
+      Some ({ prev = ps; focus = p; next; }, p)
 
   let next h current = match h.next with
   | [] -> None
   | n :: ns ->
-      let prev = push (String.trim current) (push h.current h.prev) in
-      Some ({ prev; current = n; next = ns }, n)
-
-  (* Serializing *)
+      let prev = push (String.trim current) (push h.focus h.prev) in
+      Some ({ prev; focus = n; next = ns }, n)
 
   let to_string ~sep h = Txt_entries.to_string ~sep (entries h)
   let of_string ~sep s = v (Txt_entries.of_string ~sep s)
