@@ -486,8 +486,8 @@ module Tty = struct
       | 0x0A -> `Bytes "\n"
       | 0x0D -> `Enter
       | 0x1B -> read_esc readc
+      | 0x7F | 0x08 -> `Backspace
       | b when b <= 0x1F -> `Ctrl (b + 0x60)
-      | 0x7F -> `Backspace
       | b -> `Bytes (read_bytes readc b)
       in
       Some i
