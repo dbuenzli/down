@@ -19,7 +19,7 @@ Test the module:
 
 ```
 ocamlbuild -use-ocamlfind tty_width/test.native
-test.native
+./test.native
 ```
 
 

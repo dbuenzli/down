@@ -210,19 +210,18 @@ end
 (* OCaml history *)
 
 module History = struct
-  let file () =
-    Result.bind (Dir.config ()) @@ fun dir ->
-    Ok (Filename.concat dir "ocaml/history.ml")
-
   let sep = "(**)"
   let h = ref (Phistory.v [])
-
   let add txt = h := Phistory.add !h txt
   let next current = match Phistory.next !h current with
   | None -> None | Some (h', txt) -> h := h'; Some txt
 
   let prev current = match Phistory.prev !h current with
   | None -> None | Some (h', txt) -> h := h'; Some txt
+
+  let file () =
+    Result.bind (Dir.config ()) @@ fun dir ->
+    Ok (Filename.concat dir "ocaml/history.ml")
 
   let load () =
     log_on_error ~use:() @@
@@ -256,13 +255,7 @@ end
 (* Sessions *)
 
 module Session = struct
-  type t = string list
   type name = string
-
-  let sep = "(**)"
-  let to_string phrases = Txt_entries.to_string ~sep phrases
-  let of_string s = (Txt_entries.of_string ~sep s)
-
   let dir () =
     Result.bind (Dir.config ()) @@ fun dir ->
     Ok (Filename.concat dir "ocaml/session")
@@ -385,23 +378,25 @@ module Session = struct
 
   (* Recording. *)
 
+  let sep = "(**)"
+  let to_string phrases = Txt_entries.to_string ~sep phrases
+  let of_string s = (Txt_entries.of_string ~sep s)
+
   let recording : bool ref = ref false
   let set_recording v = recording := v
   let recording () = !recording
 
-  let recorded : string list ref = ref []
-  let set_recorded phrases = recorded := List.rev phrases
-  let rem_last_recorded () = recorded := List.tl !recorded
+  let record : string list ref = ref []
+  let set_record phrases = record := List.rev phrases
+  let rem_last_recorded () = record := List.tl !record
   let add_recorded s = match String.trim s with
   | s when String.length s >= 5 && String.sub s 0 5 = "#quit" -> ()
-  | s -> recorded := s :: !recorded
+  | s -> record := s :: !record
 
   let add_if_recording s = if recording () then add_recorded s
-  let recorded () = List.rev !recorded
-
-  let record () = match recording () with
-  | true -> rem_last_recorded ()
-  | false -> set_recording true
+  let recorded () = List.rev !record
+  let record () =
+    if recording () then rem_last_recorded () else set_recording true
 
   let stop () = if recording () then (rem_last_recorded (); set_recording false)
   let revise () =
@@ -409,7 +404,7 @@ module Session = struct
     log_on_error ~use:() @@
     let s = to_string (recorded ()) in
     Result.bind (Editor.edit_string ~ext:".ml" s) @@ fun s ->
-    Ok (set_recorded (of_string s))
+    Ok (set_record (of_string s))
 
   let save ?(replace = false) n =
     stop (); log_on_error ~use:() @@
@@ -421,7 +416,7 @@ module Session = struct
         | true when not replace -> Error (err_exists n)
         | true | false ->
             Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
-            Ok (set_recorded [])
+            Ok (set_record [])
 
   let append n =
     stop (); log_on_error ~use:() @@
@@ -432,28 +427,27 @@ module Session = struct
         Result.bind (File.exists file) @@ function
         | false ->
             Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
-            Ok (set_recorded [])
+            Ok (set_record [])
         | true ->
             Result.bind (File.read file) @@ fun contents ->
             let ps = of_string contents @ ps in
             Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
-            Ok (set_recorded [])
+            Ok (set_record [])
 
   (* The idea of the following is to avoid a dialog to confirm losing
      existing recorded phrases. Though similar to history, it may be
-     confusing on parallel sessions. *)
+     confusing on parallel ocaml processes. *)
 
-  let load_unsaved () =
+  let load_unsaved_record () =
     log_on_error ~use:() @@
     Result.bind (unsaved_file ()) @@ fun file ->
     Result.bind (File.exists file) @@ function
     | false -> Ok ()
     | true ->
         Result.bind (File.read file) @@ fun contents ->
-        set_recorded (of_string contents);
-        File.set_content ~file ""
+        set_record (of_string contents); File.set_content ~file ""
 
-  let save_unsaved () =
+  let save_unsaved_record () =
     log_on_error ~use:() @@
     match recorded () with
     | [] -> Ok ()
@@ -528,8 +522,7 @@ module Prompt = struct
     | `Enter when has_semisemi txt -> Some ((String.trim txt) ^ "\n")
     | _ -> None
 
-  let create
-      ?(complete = fun w -> Ok (w, [])) ?(output = Tty.output) ~readc ()
+  let create ?(complete = fun w -> Ok (w, [])) ?(output = Tty.output) ~readc ()
     =
     { tty_w = 80; readc; output; has_answer; complete; clipboard = "";
       txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
@@ -581,23 +574,27 @@ module Prompt = struct
     clear_ui p; p.output ui; p.last_cr <- cr; p.last_max_r <- max_r
 
   let render_incomplete p prefix candidates =
-    let render_candidate prefix c =
-      (* Hackish. E.g. we don't actually get candidates one per line in case
-         of module types. *)
-      let blen = String.length c in
-      if blen = 0 then "" else
-      let sty sty s = Tty.styled_str Tty.cap sty s in
-      if c.[0] = ' ' then sty style_complete_info c else
-      match String.index c '\t' with
-      | exception Not_found -> c (* should not happen but be robust *)
-      | tab ->
-          let rst_start = tab + 1 in
-          let suf_start = String.length prefix in
-          let pre = String.sub c 0 suf_start in
-          let suf = String.sub c suf_start (tab - suf_start) in
-          let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
-          Printf.sprintf "  %s%s%s"
-            pre (sty style_complete_suff suf) (sty style_complete_info rst)
+    let render_candidate prefix c = match String.length c with
+    | 0 -> ""
+    | blen ->
+        let styled sty s = Tty.styled_str Tty.cap sty s in
+        match c.[0] = ' ' with
+        | true ->
+            (* Hackish. E.g. we don't actually get candidates one per line
+               in case of module types. *)
+            styled style_complete_info c
+        | false ->
+            match String.index c '\t' with
+            | exception Not_found -> c (* should not happen but be robust *)
+            | tab ->
+                let rst_start = tab + 1 in
+                let suf_start = String.length prefix in
+                let pre = String.sub c 0 suf_start in
+                let suf = String.sub c suf_start (tab - suf_start) in
+                let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
+                Printf.sprintf "  %s%s%s"
+                  pre (styled style_complete_suff suf)
+                  (styled style_complete_info rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
     render_ui ~active:false p;
@@ -648,29 +645,30 @@ module Prompt = struct
   | Error e -> error p "%s" e
   | Ok txt -> set_txt_value p txt
 
-  let completion_start p =
-    let id_path_char = function
+  let complete p =
+    let ocaml_id_path_char = function
     | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
     | _ -> false
     in
-    let rec loop s i =
-      if i >= 0 && id_path_char s.[i] then loop s (i - 1) else
-      let ret = i + 1 in if ret = (Pstring.cursor p) then None else Some ret
-    in
-    loop p.s (Pstring.cursor p - 1)
-
-  let complete p = match completion_start p.txt with
-  | None -> ding p
-  | Some start ->
-      let set_subst p start old w =
-        p.txt <- Pstring.subst start (start + String.length old) w p.txt
+    let completion_start p =
+      let rec loop s i =
+        if i >= 0 && ocaml_id_path_char s.[i] then loop s (i - 1) else
+        let ret = i + 1 in if ret = (Pstring.cursor p) then None else Some ret
       in
-      let word = Pstring.txt_range start (Pstring.cursor p.txt - 1) p.txt in
-      match p.complete word with
-      | Error e -> error p "%s" e
-      | Ok (_, []) -> ding p
-      | Ok (w, [_]) -> set_subst p start word w
-      | Ok (w, cs) -> render_incomplete p w cs; set_subst p start word w
+      loop p.s (Pstring.cursor p - 1)
+    in
+    match completion_start p.txt with
+    | None -> ding p
+    | Some start ->
+        let set_subst p start old w =
+          p.txt <- Pstring.subst start (start + String.length old) w p.txt
+        in
+        let word = Pstring.txt_range start (Pstring.cursor p.txt - 1) p.txt in
+        match p.complete word with
+        | Error e -> error p "%s" e
+        | Ok (_, []) -> ding p
+        | Ok (w, [_]) -> set_subst p start word w
+        | Ok (w, cs) -> render_incomplete p w cs; set_subst p start word w
 
   let ctrl_d p =
     if Pstring.txt p.txt = "" then `Eoi else (delete_next_char p; `Kont)
@@ -696,7 +694,6 @@ module Prompt = struct
     [`Arrow `Right], kont next_char, "move to next character";
     [`Meta 0x62 (* b *)], kont prev_word, "move to start of previous word";
     [`Meta 0x66 (* f *)], kont next_word, "move after the end of next word";
-    (* FIXME should this also move in hist ? *)
     [`Ctrl 0x70 (* p *)], kont prev_line, "move to previous line";
     [`Ctrl 0x6E (* n *)], kont next_line, "move to next line";
     [`Arrow `Up], kont prev_history, "previous history entry";
@@ -764,7 +761,32 @@ module Prompt = struct
     (reset p; resize p; loop p cmd_trie)
 end
 
-(* Toploop interaction *)
+(* Help *)
+
+let help () =
+  let pp_manual ppf () =
+    Fmt.pf ppf "@[Consult '%a' for the manual and API.@]"
+      pp_code "odig doc down"
+  in
+  let pp_session ppf () =
+    Fmt.pf ppf
+      "%a:@,Support for sessions is in the %a module.@,\
+            Use '%a' to list sessions."
+      pp_doc_section "Sessions" pp_code "Down.Session"
+      pp_code "Down.Session.list ()"
+  in
+  let pp_key_bindings ppf () =
+    Fmt.pf ppf "%a:@,@[<v>%a@]" pp_doc_section "Key bindings"
+      (Fmt.list Prompt.pp_cmd) Prompt.cmds
+  in
+  let pp_help ppf () =
+    Fmt.pf ppf "  @[<v>@,%a@,%a@,@,%a@,@,%a@,@]@."
+      pp_doc_section "Welcome to Down!" pp_manual () pp_session ()
+      pp_key_bindings ()
+  in
+  pp_help Format.std_formatter ()
+
+(* Completion *)
 
 module Complete = struct
   (* FIXME. POC hack via ocp-index, we likely want to that ourselves since we
@@ -854,66 +876,36 @@ let down_readline p =
       | true -> let r = loop p in ignore (Stdin.set_raw_mode false); r
 
 external sigwinch : unit -> int = "ocaml_down_sigwinch"
+let install_sigwinch_interrupt () =
+  (* Sufficient to interrupt the event loop on window size changes. *)
+  Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ()))
 
 let pp_announce ppf () =
   Fmt.pf ppf "%a %%VERSION%% loaded. Tab complete %a for more info."
     pp_doc_section "Down" pp_code "Down.help ()"
 
-let install_readline () = match Tty.cap with
+let install_down () = match Tty.cap with
 | `None -> log_disabled "No ANSI terminal capability detected."
 | `Ansi ->
     match Stdin.set_raw_mode true with
     | false -> log_disabled "Raw mode setup for stdin failed."
     | true ->
         ignore (Stdin.set_raw_mode false);
-        let () =
-          (* This is sufficient to interrupt the event loop on window size
-               changes. *)
-          let nop _ = () in
-          Sys.set_signal (sigwinch ()) (Sys.Signal_handle nop)
-        in
         let complete = Complete.with_ocp_index in
-        let readc = Stdin.readc in
-        let p = Prompt.create ~complete ~readc () in
+        let p = Prompt.create ~complete ~readc:Stdin.readc () in
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.read_interactive_input;
         Top.read_interactive_input := down_readline p;
-        History.load ();
-        Session.load_unsaved ();
-        at_exit History.save;
-        at_exit Session.save_unsaved;
+        install_sigwinch_interrupt ();
+        History.load (); at_exit History.save;
+        Session.load_unsaved_record (); at_exit Session.save_unsaved_record;
         Fmt.pr "%a@." pp_announce ()
-
-(* Help *)
-
-let help () =
-  let pp_manual ppf () =
-    Fmt.pf ppf "@[Consult '%a' for the manual and API.@]"
-      pp_code "odig doc down"
-  in
-  let pp_session ppf () =
-    Fmt.pf ppf
-      "%a:@,Support for sessions is in the %a module.@,\
-            Use '%a' to list sessions."
-      pp_doc_section "Sessions" pp_code "Down.Session"
-      pp_code "Down.Session.list ()"
-  in
-  let pp_key_bindings ppf () =
-    Fmt.pf ppf "%a:@,@[<v>%a@]" pp_doc_section "Key bindings"
-      (Fmt.list Prompt.pp_cmd) Prompt.cmds
-  in
-  let pp_help ppf () =
-    Fmt.pf ppf "  @[<v>@,%a@,%a@,@,%a@,@,%a@,@]@."
-      pp_doc_section "Welcome to Down!" pp_manual () pp_session ()
-      pp_key_bindings ()
-  in
-  pp_help Format.std_formatter ()
 
 (* Private *)
 
 module Private = struct
   module type TOP = TOP
-  let set_top t = top := t; install_readline ()
+  let set_top t = top := t; install_down ()
 end
 
 (*---------------------------------------------------------------------------
