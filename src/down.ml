@@ -188,13 +188,12 @@ module Pstring = struct
       if mark > String.length p.s then { p with mark = None }, None else
       if mark = p.cursor then p, None else
       let min, max = match p.cursor < mark with
-      | true -> p.cursor, mark
-      | false -> mark, p.cursor
+      | true -> p.cursor, mark - 1
+      | false -> mark, p.cursor - 1
       in
-      let max = if max = String.length p.s then max - 1 else max in
       let kill = txt_range ~first:min ~last:max p in
       let cursor = min and mark = Some min in
-      { (subst ~start:min ~stop:(max + 1) "" p) with cursor; mark}, Some kill
+      { (subst ~start:min ~stop:(max + 1) "" p) with cursor; mark }, Some kill
 
   let geometry ~tty_w ~margin_w p =
     (* Returns [rmax], (cr, cc, c_nl). [rmax] and [cr] are zero-based
