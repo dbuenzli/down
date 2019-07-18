@@ -715,7 +715,8 @@ module Prompt = struct
     [`Arrow `Up], kont prev_history, "previous history entry";
     [`Arrow `Down], kont next_history, "next history entry";
     (**)
-    [`Backspace;], kont delete_prev_char, "delete previous character";
+    [`Backspace], kont delete_prev_char, "delete previous character";
+    [`Delete], kont delete_next_char, "delete next character";
     [`Ctrl (`Key 0x64) (* d *)], ctrl_d,
     "delete next character or exit if input is empty";
     [`Ctrl (`Key 0x63) (* c *)], break, "abandon input";

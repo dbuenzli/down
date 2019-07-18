@@ -435,12 +435,12 @@ module Tty = struct
     in
     let pp_char ppf c = match c with
     | c when c <= 0x20 || c >= 0x80 -> pp ppf "\\x%02X" c
-    | 0x7F -> pp ppf "DEL"
+    | 0x7F -> pp ppf "backspace"
     | c -> pp ppf "%c" (Char.chr c)
     in
     match i with
     | `Arrow dir -> pp ppf "%s" (dir_to_string dir)
-    | `Backspace -> pp ppf "DEL"
+    | `Backspace -> pp ppf "backspace"
     | `Bytes b ->
         if String.length b = 1 && Char.code b.[0] < 0x20
         then pp ppf "\"\\x%02X\"" (Char.code b.[0])
