@@ -77,17 +77,17 @@ module Phistory = struct
       | es -> v (entry :: es)
 
   let prev h current = match h.prev with
-  | [] -> h, current
+  | [] -> None
   | p :: ps ->
       let next = push (String.trim current) (push h.current h.next) in
       let next = if next = [] then [""] (* bottom can be empty *) else next in
-      { prev = ps; current = p; next; }, p
+      Some ({ prev = ps; current = p; next; }, p)
 
   let next h current = match h.next with
-  | [] -> h, current
+  | [] -> None
   | n :: ns ->
       let prev = push (String.trim current) (push h.current h.prev) in
-      { prev; current = n; next = ns }, n
+      Some ({ prev; current = n; next = ns }, n)
 
   (* Serializing *)
 
@@ -218,7 +218,7 @@ module Pstring = struct
     loop p.s (String.length p.s - 1) p.cursor 0 margin_w 0 margin_w 0
 end
 
-(* History *)
+(* OCaml history *)
 
 module History = struct
   let file () =
@@ -226,35 +226,42 @@ module History = struct
     Ok (Filename.concat dir "ocaml/history.ml")
 
   let sep = "(**)"
-  let current = ref (Phistory.v [])
+  let h = ref (Phistory.v [])
+
+  let add txt = h := Phistory.add !h txt
+  let next current = match Phistory.next !h current with
+  | None -> None | Some (h', txt) -> h := h'; Some txt
+
+  let prev current = match Phistory.prev !h current with
+  | None -> None | Some (h', txt) -> h := h'; Some txt
 
   let load () =
-    log_on_error ~use:current @@
+    log_on_error ~use:() @@
     Result.map_error (Fmt.str "history load failed: %s") @@
     Result.bind (file ()) @@ fun file ->
     Result.bind (File.exists file) @@ function
-    | false -> Ok current
+    | false -> Ok ()
     | true ->
-        Result.bind (File.read file) @@ fun data ->
-        Ok (current := Phistory.of_string ~sep data; current)
+        Result.bind (File.read file) @@ fun hstr ->
+        Ok (h := Phistory.of_string ~sep hstr;)
 
   let save () =
     log_on_error ~use:() @@
     Result.map_error (Fmt.str "history save failed: %s") @@
     Result.bind (file ()) @@ fun file ->
-    File.set_content ~file (Phistory.to_string ~sep (!current))
+    File.set_content ~file (Phistory.to_string ~sep !h)
 
   let edit () =
     log_on_error ~use:() @@
     Result.map_error (Fmt.str "history edit failed: %s") @@
     Result.bind (file ()) @@ fun file ->
-    let h = Phistory.to_string ~sep !current in
-    Result.bind (File.set_content ~file h) @@ fun () ->
+    let hstr = Phistory.to_string ~sep !h in
+    Result.bind (File.set_content ~file hstr) @@ fun () ->
     Result.bind (Editor.edit_file file) @@ fun () ->
-    Result.bind (File.read file) @@ fun h ->
-    Ok (current := Phistory.of_string ~sep h)
+    Result.bind (File.read file) @@ fun hstr ->
+    Ok (h := Phistory.of_string ~sep hstr)
 
-  let clear () = current := Phistory.v []; save ()
+  let clear () = h := Phistory.v []; save ()
 end
 
 (* Sessions *)
@@ -508,7 +515,6 @@ module Prompt = struct
       output : string -> unit;
       has_answer : Tty.input -> t -> string option;
       complete : string -> (string * string list, string) result;
-      history : (* mutable *) Phistory.t ref;
       mutable clipboard : string;
       mutable txt : Pstring.t;
       (* These are zero-based rows relat. to the prompt line for clearing. *)
@@ -536,11 +542,10 @@ module Prompt = struct
     | _ -> None
 
   let create
-      ?(complete = fun w -> Ok (w, [])) ?(history = ref (Phistory.v []))
-      ?(output = Tty.output) ~readc ()
+      ?(complete = fun w -> Ok (w, [])) ?(output = Tty.output) ~readc ()
     =
-    { tty_w = 80; readc; output; has_answer; complete; history;
-      clipboard = ""; txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
+    { tty_w = 80; readc; output; has_answer; complete; clipboard = "";
+      txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
 
   (* Rendering *)
 
@@ -614,9 +619,9 @@ module Prompt = struct
   (* Commands *)
 
   let set_txt_value p txt = p.txt <- Pstring.eoi (Pstring.v txt)
-  let update_history op p =
-    let h, txt = op !(p.history) (Pstring.txt p.txt) in
-    if h == !(p.history) then ding p else (set_txt_value p txt; p.history := h)
+  let set_txt_with_history op p = match op (Pstring.txt p.txt) with
+  | None -> ding p
+  | Some txt -> set_txt_value p txt
 
   let update op p =
     let txt = op p.txt in
@@ -689,9 +694,8 @@ module Prompt = struct
   let session_prev_step p = match Session.step_prev () with
   | None -> ding p | Some s -> set_txt_value p s
 
-  let add_history p s = p.history := Phistory.add !(p.history) s
-  let prev_history = update_history Phistory.prev
-  let next_history = update_history Phistory.next
+  let prev_history = set_txt_with_history History.prev
+  let next_history = set_txt_with_history History.next
   let break p = `Break
   let kont f p = f p; `Kont
   let cmds : (Tty.input list * cmd * string) list = [
@@ -753,7 +757,7 @@ module Prompt = struct
       | Some i ->
           match p.has_answer i p with
           | Some a ->
-              (add_history p a; Session.add_if_recording a; return p; `Answer a)
+              (History.add a; Session.add_if_recording a; return p; `Answer a)
           | None ->
               let input_state = Itrie.find [i] input_state in
               match Itrie.value input_state with
@@ -881,13 +885,13 @@ let install_readline () = match Tty.cap with
           let nop _ = () in
           Sys.set_signal (sigwinch ()) (Sys.Signal_handle nop)
         in
-        let history = History.load () in
         let complete = Complete.with_ocp_index in
         let readc = Stdin.readc in
-        let p = Prompt.create ~complete ~history ~readc () in
+        let p = Prompt.create ~complete ~readc () in
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.readline;
         Top.readline := down_readline p;
+        History.load ();
         Session.load_unsaved ();
         at_exit History.save;
         at_exit Session.save_unsaved;
