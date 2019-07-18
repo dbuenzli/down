@@ -135,6 +135,20 @@ module Txt : sig
       end of line if that happened before. *)
 end
 
+(** Text entries parsing.
+
+    Parsing text made of entries separated by a special line. *)
+module Txt_entries : sig
+  val to_string : sep:string -> string list -> string
+  (** [to_string ~sep es] converts entries [es] to a string
+      by concatening them and separating them by lines containing
+      [sep]. *)
+
+  val of_string : sep:string -> string -> string list
+  (** [of_string ~sep s] are the entries of [s]. Entries
+      are separated by trimmed lines that contain [sep]. *)
+end
+
 (** Environment variables. *)
 module Env : sig
   val get : string -> string option

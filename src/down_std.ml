@@ -204,6 +204,26 @@ module Txt = struct
     loop s max w i
 end
 
+(* Text made of entries separated by a special line. *)
+
+module Txt_entries = struct
+  let nl = if Sys.win32 then "\r\n" else "\n"
+  let to_string ~sep es = String.concat (Printf.sprintf "%s%s%s" nl sep nl) es
+  let of_string ~sep s =
+    let add_entry acc lines =
+      let e = String.concat nl (List.rev lines) in
+      if e = "" then acc else e :: acc
+    in
+    let rec loop acc curr = function
+    | [] -> List.rev (add_entry acc curr)
+    | l :: ls ->
+        if String.equal (String.trim l) sep
+        then loop (add_entry acc curr) [] ls
+        else loop acc (l :: curr) ls
+    in
+    loop [] [] (Txt.lines s)
+end
+
 (* OS interaction *)
 
 let cmd_run ?stdout ?stderr cmd =

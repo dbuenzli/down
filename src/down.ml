@@ -56,27 +56,6 @@ let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
 let log_disabled fmt =
   Fmt.pr ("%a: Down %%VERSION%% disabled. " ^^ fmt ^^ "@.") pp_warn "Warning"
 
-(* Text made of entries separated by a special line. *)
-
-module Entries = struct
-  type t = string list
-  let nl = if Sys.win32 then "\r\n" else "\n"
-  let to_string ~sep es = String.concat (Printf.sprintf "%s%s%s" nl sep nl) es
-  let of_string ~sep s =
-    let add_entry acc lines =
-      let e = String.concat nl (List.rev lines) in
-      if e = "" then acc else e :: acc
-    in
-    let rec loop acc curr = function
-    | [] -> List.rev (add_entry acc curr)
-    | l :: ls ->
-        if String.equal (String.trim l) sep
-        then loop (add_entry acc curr) [] ls
-        else loop acc (l :: curr) ls
-    in
-    loop [] [] (Txt.lines s)
-end
-
 (* Prompt history *)
 
 module Phistory = struct
@@ -112,8 +91,8 @@ module Phistory = struct
 
   (* Serializing *)
 
-  let to_string ~sep h = Entries.to_string ~sep (entries h)
-  let of_string ~sep s = v (Entries.of_string ~sep s)
+  let to_string ~sep h = Txt_entries.to_string ~sep (entries h)
+  let of_string ~sep s = v (Txt_entries.of_string ~sep s)
 end
 
 (* String editor *)
@@ -285,8 +264,8 @@ module Session = struct
   type name = string
 
   let sep = "(**)"
-  let to_string phrases = Entries.to_string ~sep phrases
-  let of_string s = (Entries.of_string ~sep s)
+  let to_string phrases = Txt_entries.to_string ~sep phrases
+  let of_string s = (Txt_entries.of_string ~sep s)
 
   let dir () =
     Result.bind (Dir.config ()) @@ fun dir ->
@@ -344,7 +323,7 @@ module Session = struct
     | true -> Ok s
     | false ->
         Error (Fmt.str "No session %a found, \
-                        see %a" pp_code n pp_code "Down.Session.list ()")
+                        see '%a'" pp_code n pp_code "Down.Session.list ()")
 
   let last_name () =
     log_on_error ~use:None @@
@@ -380,7 +359,7 @@ module Session = struct
     match use_file ?silent file with
     | true -> set_last_session n
     | false ->
-        Error (Fmt.str "Use %a to correct errors." pp_code
+        Error (Fmt.str "Use '%a' to correct errors." pp_code
                  (Fmt.str "Down.Session.edit %S" n))
 
   let edit n =
@@ -394,7 +373,7 @@ module Session = struct
         Editor.edit_file file
 
   let err_exists n =
-    Fmt.str "Session %a exists, specify %a to overwrite."
+    Fmt.str "Session %a exists, specify '%a' to overwrite."
       pp_code n pp_code "~replace:true"
 
   let of_file ?(replace = false) ~file n =
