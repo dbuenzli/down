@@ -495,10 +495,10 @@ module Tty = struct
           | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
           end
       | Some 0x33 ->
-          let pre = "ESC[1" in
+          let pre = "ESC[3" in
           begin match readc () with
           | None -> `Unknown pre
-          | Some 0x33 -> `Delete
+          | Some 0x7E -> `Delete
           | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
           end
       | Some b -> `Unknown (strf "ESC[%c" (Char.chr b))
