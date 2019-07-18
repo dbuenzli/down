@@ -99,13 +99,19 @@ you can [load] the session to execute its phrases:
 This is strictly equivalent to issue the [#use] toplevel directive on
 the the session file.
 
-One convention you should remember is that the string [""] is used in
-many session functions to refer to the name of the last [load]ed session. For
-example:
+One convention to remember is that the string [""] is used in session
+functions to refer to the name of the last explicit session name you
+used with one the session functions. This is persisted accross [ocaml]
+invocation. For example:
 
 {[
-# Down.Session.load ""   (* load the last loaded session *)
-# Down.Session.edit ""   (* edit the last loaded session *)
+# Down.Session.edit "mysession"   (* edit session "mysession" *)
+# Down.Session.load ""            (* load session "mysession" *)
+# Down.Session.edit ""            (* edit session "mysession" *)
+# ^D
+> ocaml
+...
+# Down.Session.load ""            (* load session "mysession" *)
 ]}
 
 {2:recording Recording phrases}
@@ -148,8 +154,7 @@ simply [edit] the session to correct it and try again.
 
 If you forget to save the list of recorded phrases they should be
 available to [revise], [save] or [append] the next time you run
-[ocaml] ({b WARNING} at the moment this is only true if you quit via
-[C-d]).
+[ocaml].
 
 {2:stepping Stepping phrases}
 
@@ -185,5 +190,4 @@ session used.
 
 If you recorded phrases but didn't save them they are persisted in the
 file [~/.config/ocaml/session/unsaved] and reloaded on the next
-[ocaml] execution ({b WARNING} at the moment this is only true if you
-quit via [C-d]).
+[ocaml] execution.

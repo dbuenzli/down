@@ -314,15 +314,15 @@ module Session = struct
   let set_last_session n =
     Result.bind (last_session_file ()) @@ fun file -> File.set_content ~file n
 
-  let find_session n = match n with
-  | "" -> last_session ()
-  | n -> Result.bind (session_file n) @@ fun f -> Ok (Some (n, f))
-
   let get_session n =
-    let err = "No existing last session found." in
+    let find_session n = match n with
+    | "" -> last_session ()
+    | n -> Result.bind (session_file n) @@ fun f -> Ok (Some (n, f))
+    in
     Result.bind (find_session n) @@ function
-    | None -> Error err
-    | Some (name, file) -> Ok (name, file)
+    | None -> Error "No existing last session found."
+    | Some (name, file) ->
+        log_on_error ~use:() (set_last_session name); Ok (name, file)
 
   let get_existing_session n =
     Result.bind (get_session n) @@ fun (n, file as s) ->
@@ -363,11 +363,9 @@ module Session = struct
   let load ?silent n =
     log_on_error ~use:() @@
     Result.bind (get_existing_session n) @@ fun (n, file) ->
-    match use_file ?silent file with
-    | true -> set_last_session n
-    | false ->
-        Error (Fmt.str "Use '%a' to correct errors." pp_code
-                 (Fmt.str "Down.Session.edit %S" n))
+    if (use_file ?silent file) then Ok () else
+    Error
+      (Fmt.str "Use '%a' to correct errors." pp_code "Down.Session.edit \"\"")
 
   let edit n =
     log_on_error ~use:() @@

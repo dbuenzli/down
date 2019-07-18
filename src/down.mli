@@ -30,12 +30,13 @@ module Session : sig
   (** {1:sessions Sessions} *)
 
   type name = string
-  (** The type for session names. Use [""] to denote the {!last}
+  (** The type for session names. Use [""] to denote the {!last_name}
       session. *)
 
   val last_name : unit -> string option
-  (** [last_name ()] is the last session executed via {!load}; if any
-      and still existing. *)
+  (** [last_name ()] is the last session name that was used with any
+      of the functions of this module; if any and still
+      existing. Persisted accross [ocaml] invocations. *)
 
   val list : unit -> unit
   (** [list ()] lists available sessions. *)
@@ -57,7 +58,10 @@ module Session : sig
   val delete : name -> unit
   (** [delete s] deletes session [s]. *)
 
-  (** {1:record Recording} *)
+  (** {1:record Recording}
+
+      {b Note.} Unsaved recorded phrases are persisted across [ocaml]
+      sessions. *)
 
   val record : unit -> unit
   (** [record] starts recording phrases. *)
