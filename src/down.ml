@@ -413,10 +413,10 @@ module Session = struct
 
   let save ?(replace = false) n =
     stop (); log_on_error ~use:() @@
+    Result.bind (get_session n) @@ fun (n, file) ->
     match recorded () with
     | [] -> Error "No phrase to save."
     | ps ->
-        Result.bind (get_session n) @@ fun (n, file) ->
         Result.bind (File.exists file) @@ function
         | true when not replace -> Error (err_exists n)
         | true | false ->
@@ -425,10 +425,10 @@ module Session = struct
 
   let append n =
     stop (); log_on_error ~use:() @@
+    Result.bind (get_session n) @@ fun (_, file) ->
     match recorded () with
     | [] -> Error "No phrase to append."
     | ps ->
-        Result.bind (get_session n) @@ fun (_, file) ->
         Result.bind (File.exists file) @@ function
         | false ->
             Result.bind (File.set_content ~file (to_string ps)) @@ fun () ->
