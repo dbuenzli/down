@@ -392,17 +392,26 @@ module Session = struct
   (* Recording. *)
 
   let recording : bool ref = ref false
-  let _recorded : string list ref = ref []
-  let set_recorded phrases = _recorded := List.rev phrases
-  let recorded () = List.rev !_recorded
-  let rem_last_recorded () = _recorded := List.tl !_recorded
-  let record () = match !recording with
-  | true -> rem_last_recorded ()
-  | false -> recording := true
+  let set_recording v = recording := v
+  let recording () = !recording
 
-  let stop () = if !recording then (rem_last_recorded (); recording := false)
+  let recorded : string list ref = ref []
+  let set_recorded phrases = recorded := List.rev phrases
+  let rem_last_recorded () = recorded := List.tl !recorded
+  let add_recorded s = match String.trim s with
+  | s when String.length s >= 5 && String.sub s 0 5 = "#quit" -> ()
+  | s -> recorded := s :: !recorded
+
+  let add_if_recording s = if recording () then add_recorded s
+  let recorded () = List.rev !recorded
+
+  let record () = match recording () with
+  | true -> rem_last_recorded ()
+  | false -> set_recording true
+
+  let stop () = if recording () then (rem_last_recorded (); set_recording false)
   let revise () =
-    if !recording then rem_last_recorded ();
+    if recording () then rem_last_recorded ();
     log_on_error ~use:() @@
     let s = to_string (recorded ()) in
     Result.bind (Editor.edit_string ~ext:".ml" s) @@ fun s ->
@@ -441,14 +450,14 @@ module Session = struct
      confusing on parallel sessions. *)
 
   let load_unsaved () =
-    log_on_error ~use:_recorded @@
+    log_on_error ~use:() @@
     Result.bind (unsaved_file ()) @@ fun file ->
     Result.bind (File.exists file) @@ function
-    | false -> Ok _recorded
+    | false -> Ok ()
     | true ->
         Result.bind (File.read file) @@ fun contents ->
         set_recorded (of_string contents);
-        Result.bind (File.set_content ~file "") @@ fun () -> Ok _recorded
+        File.set_content ~file ""
 
   let save_unsaved () =
     log_on_error ~use:() @@
@@ -500,8 +509,6 @@ module Prompt = struct
       has_answer : Tty.input -> t -> string option;
       complete : string -> (string * string list, string) result;
       history : (* mutable *) Phistory.t ref;
-      recording : (* mutable *) bool ref;
-      recorded : (* mutable *) Session.t ref;
       mutable clipboard : string;
       mutable txt : Pstring.t;
       (* These are zero-based rows relat. to the prompt line for clearing. *)
@@ -530,12 +537,10 @@ module Prompt = struct
 
   let create
       ?(complete = fun w -> Ok (w, [])) ?(history = ref (Phistory.v []))
-      ?(recording = ref false) ?(recorded = ref []) ?(output = Tty.output)
-      ~readc ()
+      ?(output = Tty.output) ~readc ()
     =
-    { tty_w = 80; readc; output; has_answer; complete; history; recording;
-      recorded; clipboard = ""; txt = Pstring.empty; last_cr = 0;
-      last_max_r = 0; }
+    { tty_w = 80; readc; output; has_answer; complete; history;
+      clipboard = ""; txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
 
   (* Rendering *)
 
@@ -562,8 +567,8 @@ module Prompt = struct
   let prompt = "# "
   let margin = "  "
   let nl_margin = "\r\n  "
-  let render_prompt ~active ~recording =
-    let style = match recording with
+  let render_prompt ~active =
+    let style = match Session.recording () with
     | false -> if active then style_prompt else style_prompt_inactive
     | true ->
         if active then style_prompt_recording else
@@ -575,7 +580,7 @@ module Prompt = struct
     let tty_w = p.tty_w and margin_w = String.length margin in
     let max_r, (cr, cc, c_nl) = Pstring.geometry ~tty_w ~margin_w p.txt in
     let add_line acc l = nl_margin :: l :: acc in
-    let acc = [render_prompt ~active ~recording:!(p.recording)] in
+    let acc = [render_prompt ~active] in
     let acc = List.fold_left add_line acc (Txt.lines (Pstring.txt p.txt)) in
     let acc = "\r" :: List.tl acc (* remove exceeding nl_margin *) in
     let acc = if c_nl (* cursor wrapped *) then "\n" :: acc else acc in
@@ -684,7 +689,6 @@ module Prompt = struct
   let session_prev_step p = match Session.step_prev () with
   | None -> ding p | Some s -> set_txt_value p s
 
-  let add_recorded p s = if !(p.recording) then p.recorded := s :: !(p.recorded)
   let add_history p s = p.history := Phistory.add !(p.history) s
   let prev_history = update_history Phistory.prev
   let next_history = update_history Phistory.next
@@ -748,7 +752,8 @@ module Prompt = struct
       | None -> (* EINTR (and thus SIGWINCH) *) resize p; loop p input_state
       | Some i ->
           match p.has_answer i p with
-          | Some a -> (add_history p a; add_recorded p a; return p; `Answer a)
+          | Some a ->
+              (add_history p a; Session.add_if_recording a; return p; `Answer a)
           | None ->
               let input_state = Itrie.find [i] input_state in
               match Itrie.value input_state with
@@ -878,15 +883,12 @@ let install_readline () = match Tty.cap with
         in
         let history = History.load () in
         let complete = Complete.with_ocp_index in
-        let recording = Session.recording in
-        let recorded = Session.load_unsaved () in
         let readc = Stdin.readc in
-        let p =
-          Prompt.create ~complete ~history ~recording ~recorded ~readc ()
-        in
+        let p = Prompt.create ~complete ~history ~readc () in
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.readline;
         Top.readline := down_readline p;
+        Session.load_unsaved ();
         at_exit History.save;
         at_exit Session.save_unsaved;
         Fmt.pr "%a@." pp_announce ()
