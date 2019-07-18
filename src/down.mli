@@ -13,15 +13,6 @@
 val help : unit -> unit
 (** [help ()] prints help about Down. *)
 
-(** Manage history. *)
-module History : sig
-  val edit : unit -> unit
-  (** [edit ()] edits history in your editor. *)
-
-  val clear : unit -> unit
-  (** [clear ()] clears the history. *)
-end
-
 (** Manage sessions.
 
     See the {{!page-manual.sessions}manual}. *)
@@ -95,6 +86,15 @@ module Session : sig
   val prev_step : unit -> unit
   (** [prev_step ()] moves the previous step of the stepped session.
       Usually you do this via [C-x C-p]. *)
+end
+
+(** Manage history. *)
+module History : sig
+  val edit : unit -> unit
+  (** [edit ()] edits history in your editor. *)
+
+  val clear : unit -> unit
+  (** [clear ()] clears the history. *)
 end
 
 (** Private.
