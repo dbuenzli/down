@@ -36,6 +36,8 @@ let () =
   Ok [ Pkg.mllib ~api:["Down"] "src/down.mllib";
        Pkg.mllib ~cond:has_ocamlnat ~api:["Down"] "src/down_nattop.mllib";
        Pkg.clib "src/libdown_stubs.clib";
+       Pkg.doc "doc/index.mld" ~dst:"odoc-pages/index.mld";
+       Pkg.doc "doc/manual.mld" ~dst:"odoc-pages/manual.mld";
        Pkg.toplevel "src/down.top";
        Pkg.toplevel ~cond:has_ocamlnat "src/down.nattop";
        Pkg.test "test/test";
