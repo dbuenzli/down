@@ -48,8 +48,8 @@ valid OCaml file since history includes lines that did not parse.
 
 The {!Down.History} module has a few functions to manipulate history:
 {[
-# Down.History.edit ()   (* edit the history in your editor. *)
-# Down.History.clear ()  (* clear your history. *)
+# Down.History.edit ()   (* edit the history in your editor *)
+# Down.History.clear ()  (* clear your history *)
 ]}
 
 {1:completion Completion}

@@ -4,7 +4,8 @@ Down is an unintrusive user experience upgrade for the [ocaml]
 toplevel (REPL).
 
 Simply load the zero dependency [Down] library in the toplevel and you
-get line edition, history, identifier completion and session support.
+get line edition, history, identifier completion and
+{{!page-manual.sessions}session support}.
 
 Consult the {{!page-manual}manual}.
 
