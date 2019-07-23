@@ -6,8 +6,8 @@ Down is an unintrusive user experience upgrade for the `ocaml`
 toplevel (REPL). 
 
 Simply load the zero dependency `Down` library in the `ocaml` toplevel
-and you get line edition, history, identifier completion and session
-support (courtesy of [`opc-index`][ocp-index]).
+and you get line edition, history, session support and identifier
+completion and documentation (courtesy of [`ocp-index`][ocp-index]).
 
 Add this to your `~/.ocamlinit`:
 

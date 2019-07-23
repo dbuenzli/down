@@ -1,6 +1,6 @@
 opam-version: "2.0"
 maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
-authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+authors: ["The down programmers"]
 homepage: "https://erratique.ch/software/down"
 doc: "https://erratique.ch/software/down/doc"
 license: "ISC"

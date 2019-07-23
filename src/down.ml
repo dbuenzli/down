@@ -519,7 +519,8 @@ module Prompt = struct
   let has_answer input p =
     (* FIXME ocaml and utop are a bit weird. Try to sort that out.
        Notably is there does seem to be any good reason not to input
-       successive ;; separated phrases, ocaml does that on .ml files. *)
+       successive ;; separated phrases, ocaml does that on .ml files.
+       Cf. https://github.com/ocaml/ocaml/issues/8813 *)
     let has_semisemi s =
       let rec loop s max i in_str lastc = match i > max with
       | true -> false
@@ -868,7 +869,7 @@ let help () =
   in
   pp_help Format.std_formatter ()
 
-(* Completion *)
+(* Completion and doc lookup via ocp-index *)
 
 module Ocp_index = struct
   (* FIXME. POC hack via ocp-index, we likely want to that ourselves since we
@@ -891,7 +892,7 @@ module Ocp_index = struct
     | Ok true -> Ok ()
     | Ok false ->
         Error (Fmt.str "Completion and doc lookup needs ocp-index. Try '%a'."
-                 pp_code "opam install ocp-index'")
+                 pp_code "opam install ocp-index")
     end
 
   let complete_cmd token = ["ocp-index"; "complete"; "-f"; "%q \t %t"; token ]
