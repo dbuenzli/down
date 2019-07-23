@@ -97,6 +97,11 @@ module History : sig
   (** [clear ()] clears the history. *)
 end
 
+val tty_no_faint : unit -> unit
+(** [tty_no_faint ()] disables uses of ANSI faint by down.  Some
+    terminals switch to different colors which may be unpleasant, call
+    this function if that is the case. *)
+
 (** Private.
 
     Do not use. This is an unstable API subject to change even between

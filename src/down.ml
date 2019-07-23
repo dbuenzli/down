@@ -32,23 +32,26 @@ let use_file ?(silent = false) file =
 
 (* Logging and formatting styles *)
 
+let faint = ref true
+let add_faint acc = if !faint then `Faint :: acc else acc
+let tty_no_faint () = faint := false
 let style_err = [`Bold; `Fg `Red] (* match ocaml *)
-let style_warn = [`Bold; `Fg `Cyan] (* match ocaml *)
+let style_warn = [`Bold; `Fg `Magenta] (* match ocaml *)
 let style_doc_section = [`Fg `Yellow]
 let style_code = [`Bold]
-let style_complete_suff = [`Fg `Magenta]
-let style_complete_info = [`Italic; `Faint]
-let style_last_indicator = [`Fg `Magenta]
+let style_complete_suff = [`Fg (`Hi `Cyan)]
+let style_complete_info () = (add_faint [`Italic])
+let style_last_indicator = [`Fg `Yellow]
 let style_key = [`Bold ]
-let style_prompt = [`Fg `Green ]
-let style_prompt_inactive = (`Faint :: style_prompt)
-let style_prompt_recording = [`Fg `Cyan ]
-let style_prompt_recording_inactive = (`Faint :: style_prompt_recording)
+let style_prompt = [`Fg (`Hi `Green) ]
+let style_prompt_inactive () = (add_faint [`Fg `Green])
+let style_prompt_recording = [`Fg (`Hi `Magenta) ]
+let style_prompt_recording_inactive () = (add_faint [`Fg `Magenta])
 let pp_error = Fmt.tty style_err Fmt.string
 let pp_warn = Fmt.tty  style_warn Fmt.string (* match ocaml *)
 let pp_doc_section = Fmt.tty style_doc_section Fmt.string
 let pp_code = Fmt.tty style_code Fmt.string
-let pp_faint = Fmt.tty [`Faint] Fmt.string
+let pp_faint () = Fmt.tty (add_faint []) Fmt.string
 let log_error fmt = Fmt.pr ("%a: " ^^ fmt ^^ "@.") pp_error "Error"
 let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
 let log_disabled fmt =
@@ -332,14 +335,14 @@ module Session = struct
       if not last then () else
       Fmt.pf ppf "(%a) " (Fmt.tty style_last_indicator Fmt.string) "last"
     in
-    let pp_session ~last ppf (n, path) =
-      Fmt.pf ppf "@[<h>%a %a%a@]" pp_code n pp_last (last = n) pp_faint path
+    let pp_session ~last ppf (n, p) =
+      Fmt.pf ppf "@[<h>%a %a%a@]" pp_code n pp_last (last = n) (pp_faint ()) p
     in
     let pp_session_list ~last ppf ss =
       Fmt.pf ppf "  @[<v>@,%a@,@]" (Fmt.list (pp_session ~last)) ss
     in
     let pp_none ppf dir =
-      Fmt.pf ppf "  @[<v>@,No session found in %a@,@]" pp_faint dir
+      Fmt.pf ppf "  @[<v>@,No session found in %a@,@]" (pp_faint ()) dir
     in
     log_on_error ~use:() @@
     Result.bind (dir ()) @@ fun dir ->
@@ -562,10 +565,10 @@ module Prompt = struct
   let nl_margin = "\r\n  "
   let render_prompt ~active =
     let style = match Session.recording () with
-    | false -> if active then style_prompt else style_prompt_inactive
+    | false -> if active then style_prompt else style_prompt_inactive ()
     | true ->
         if active then style_prompt_recording else
-        style_prompt_recording_inactive
+        style_prompt_recording_inactive ()
     in
     Tty.styled_str Tty.cap style prompt
 
@@ -590,7 +593,7 @@ module Prompt = struct
         | true ->
             (* Hackish. E.g. we don't actually get candidates one per line
                in case of module types. *)
-            styled style_complete_info c
+            styled (style_complete_info ()) c
         | false ->
             match String.index c '\t' with
             | exception Not_found -> c (* should not happen but be robust *)
@@ -602,7 +605,7 @@ module Prompt = struct
                 let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
                 Printf.sprintf "  %s%s%s"
                   pre (styled style_complete_suff suf)
-                  (styled style_complete_info rst)
+                  (styled (style_complete_info ()) rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
     render_ui ~active:false p;
