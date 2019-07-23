@@ -915,11 +915,13 @@ let pp_announce ppf () =
   Fmt.pf ppf "%a %%VERSION%% loaded. Type %a for more info."
     pp_doc_section "Down" pp_code "Down.help ()"
 
+let err_no_ansi = "No ANSI terminal capability detected."
+let err_no_raw = "Failed to set stdin in raw mode."
 let install_down () = match Tty.cap with
-| `None -> log_disabled "No ANSI terminal capability detected."
+| `None -> log_disabled "%s" err_no_ansi
 | `Ansi ->
     match Stdin.set_raw_mode true with
-    | false -> log_disabled "Raw mode setup for stdin failed."
+    | false -> log_disabled "%s" err_no_raw
     | true ->
         ignore (Stdin.set_raw_mode false);
         let complete = Complete.with_ocp_index in
@@ -937,6 +939,36 @@ let install_down () = match Tty.cap with
 module Private = struct
   module type TOP = TOP
   let set_top t = top := t; install_down ()
+
+  let unicode_version = Down_tty_width.unicode_version
+
+  let tty_test () = match Tty.cap with
+  | `None -> print_endline err_no_ansi
+  | `Ansi ->
+      match Stdin.set_raw_mode true with
+      | false -> print_endline err_no_raw
+      | true ->
+          let w = Tty.width Stdin.readc in
+          let welcome =
+            Fmt.str
+              "\r\nWelcome to Down's TTY test! Your width is %d. Ding!\r\n\
+               Hit your keyboard. C-{c,d} stops the test.\r\n\r\n" w
+          in
+          Tty.output welcome;
+          Tty.output Tty.ding;
+          let rec loop () = match Tty.input Stdin.readc with
+          | None ->
+              let w = Tty.width Stdin.readc in
+              Tty.output (Fmt.str "Your width is %d.\r\n" w); loop ()
+          | Some i ->
+              match i with
+              | `Ctrl (`Key 0x63) (* c *) -> print_endline "Bye.\r"
+              | `Ctrl (`Key 0x64) (* d *) -> print_endline "EOF Bye.\r"
+              | _ ->
+                  print_endline (Format.asprintf "%a\r" Tty.pp_input i);
+                  loop ()
+          in
+          loop ()
 end
 
 (*---------------------------------------------------------------------------

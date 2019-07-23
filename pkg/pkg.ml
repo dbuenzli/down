@@ -41,4 +41,4 @@ let () =
        Pkg.toplevel "src/down.top";
        Pkg.toplevel ~cond:has_ocamlnat "src/down.nattop";
        Pkg.test "test/test";
-       Pkg.test "test/test_input"; ]
+       Pkg.test "test/tty_test"; ]

@@ -4,29 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-open Down_std
-
-let err str = prerr_endline str; exit 1
-let () = match Tty.cap with
-| `None -> err "No ANSI capability detected."
-| `Ansi ->
-    match Stdin.set_raw_mode true with
-    | false -> err "Could not set stdin in raw mode"
-    | true ->
-        let w = Tty.width Stdin.readc in
-        let welcome = Printf.sprintf "Welcome! Your width is %d. Ding!\r\n" w in
-        Tty.output welcome;
-        Tty.output Tty.ding;
-        let rec loop () = match Tty.input Stdin.readc with
-        | None -> print_endline "EOF Bye!\r"
-        | Some i ->
-            match i with
-            | `Ctrl (`Key 0x63) (* c *) -> print_endline "Bye.\r"
-            | `Ctrl (`Key 0x64) (* d *) -> print_endline "EOF Bye.\r"
-            | _ ->
-                print_endline (Format.asprintf "%a\r" Tty.pp_input i); loop ()
-        in
-        loop ()
+let () = Down.Private.tty_test ()
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2019 The down programmers
