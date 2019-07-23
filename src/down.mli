@@ -117,6 +117,10 @@ module Private : sig
 
   val set_top : (module TOP) -> unit
   (** [set_top t] sets the implementation of the OCaml toplevel to [t]. *)
+
+  val unicode_version : string
+  (** [unicode_version] is the Unicode version on which the
+      {!Uucp.Break.tty_break_hint} data used by down is based. *)
 end
 
 (*---------------------------------------------------------------------------
