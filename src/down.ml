@@ -757,7 +757,10 @@ module Prompt = struct
   let ask p =
     let reset p = p.last_cr <- 0; p.last_max_r <- 0; p.txt <- Pstring.empty in
     let resize p = p.tty_w <- Tty.width p.readc in
-    let return p = render_ui ~active:false p; p.output Tty.newline in
+    let return p =
+      p.txt <- Pstring.eoi p.txt;
+      render_ui ~active:false p; p.output Tty.newline
+    in
     let rec loop p input_state =
       render_ui p;
       match Tty.input p.readc with
