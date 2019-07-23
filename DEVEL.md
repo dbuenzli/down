@@ -1,7 +1,15 @@
 # Testing toplevel
 
-Add an empty `.ocamlinit` file at the root of the distribution to disable
-`~/.ocamlinit`. Then it's just a mater of:
+Add an empty `.ocamlinit` file at the root of the distribution to
+disable your own `~/.ocamlinit`:
+
+```
+echo '#directory "_build/src";; #load "down.cma"' > .ocamlinit
+topkg build 
+ocaml
+```
+
+or
 
 ```
 touch .ocamlinit
