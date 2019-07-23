@@ -580,9 +580,13 @@ module Prompt = struct
     let acc = List.fold_left add_line acc (Txt.lines (Pstring.txt p.txt)) in
     let acc = "\r" :: List.tl acc (* remove exceeding nl_margin *) in
     let acc = if c_nl (* cursor wrapped *) then "\n" :: acc else acc in
-    let acc = Tty.cursor_forward cc :: Tty.cursor_up (max_r - cr) :: acc in
+    let acc = match active with
+    | true -> Tty.cursor_forward cc :: Tty.cursor_up (max_r - cr) :: acc
+    | false -> acc
+    in
     let ui = String.concat "" (List.rev acc) in
-    clear_ui p; p.output ui; p.last_cr <- cr; p.last_max_r <- max_r
+    clear_ui p; p.output ui;
+    if active then (p.last_cr <- cr; p.last_max_r <- max_r)
 
   let render_incomplete p prefix candidates =
     let render_candidate prefix c = match String.length c with
@@ -608,8 +612,8 @@ module Prompt = struct
                   (styled (style_complete_info ()) rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
-    render_ui ~active:false p;
-    newline p; p.output (String.concat Tty.newline candidates); newline p
+    render_ui ~active:false p; newline p;
+    p.output (String.concat Tty.newline candidates); newline p
 
   (* Commands *)
 
@@ -760,10 +764,7 @@ module Prompt = struct
   let ask p =
     let reset p = p.last_cr <- 0; p.last_max_r <- 0; p.txt <- Pstring.empty in
     let resize p = p.tty_w <- Tty.width p.readc in
-    let return p =
-      p.txt <- Pstring.eoi p.txt;
-      render_ui ~active:false p; p.output Tty.newline
-    in
+    let return p = render_ui ~active:false p; newline p in
     let rec loop p input_state =
       render_ui p;
       match Tty.input p.readc with
