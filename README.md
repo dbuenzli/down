@@ -5,8 +5,9 @@ down — An OCaml toplevel (REPL) upgrade
 Down is an unintrusive user experience upgrade for the `ocaml`
 toplevel (REPL). 
 
-Simply load the zero dependency `Down` library in the toplevel and you
-get line edition, history, identifier completion and session support.
+Simply load the zero dependency `Down` library in the `ocaml` toplevel
+and you get line edition, history, identifier completion and session
+support (courtesy of [`opc-index`][ocp-index]).
 
 Add this to your `~/.ocamlinit`:
 
@@ -17,6 +18,8 @@ Add this to your `~/.ocamlinit`:
 Down is distributed under the ISC license.
 
 Homepage: http://erratique.ch/software/down
+
+[ocp-index]: https://github.com/OCamlPro/ocp-index
 
 ## Installation
 

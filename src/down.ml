@@ -39,8 +39,10 @@ let style_err = [`Bold; `Fg `Red] (* match ocaml *)
 let style_warn = [`Bold; `Fg `Magenta] (* match ocaml *)
 let style_doc_section = [`Fg `Yellow]
 let style_code = [`Bold]
-let style_complete_suff = [`Fg (`Hi `Cyan)]
-let style_complete_info () = (add_faint [`Italic])
+let style_id_complete_suff = [`Fg (`Hi `Cyan)]
+let style_id_complete_info () = add_faint [`Italic]
+let style_id_info_id = [`Fg (`Hi `Cyan) ]
+let style_id_info_type = [`Italic]
 let style_last_indicator = [`Fg `Yellow]
 let style_key = [`Bold ]
 let style_prompt = [`Fg (`Hi `Green) ]
@@ -506,7 +508,8 @@ module Prompt = struct
       readc : unit -> int option;
       output : string -> unit;
       has_answer : Tty.input -> t -> string option;
-      complete : string -> (string * string list, string) result;
+      id_complete : string -> (string * string list, string) result;
+      id_info : string -> ((string * string * string) option, string) result;
       mutable clipboard : string;
       mutable txt : Pstring.t;
       (* These are zero-based rows relat. to the prompt line for clearing. *)
@@ -533,10 +536,12 @@ module Prompt = struct
     | `Enter when has_semisemi txt -> Some ((String.trim txt) ^ "\n")
     | _ -> None
 
-  let create ?(complete = fun w -> Ok (w, [])) ?(output = Tty.output) ~readc ()
+  let create
+      ?(id_complete = fun w -> Ok (w, [])) ?(id_info = fun id -> Ok None)
+      ?(output = Tty.output) ~readc ()
     =
-    { tty_w = 80; readc; output; has_answer; complete; clipboard = "";
-      txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
+    { tty_w = 80; readc; output; has_answer; id_complete; id_info;
+      clipboard = ""; txt = Pstring.empty; last_cr = 0; last_max_r = 0; }
 
   (* Rendering *)
 
@@ -588,7 +593,7 @@ module Prompt = struct
     clear_ui p; p.output ui;
     if active then (p.last_cr <- cr; p.last_max_r <- max_r)
 
-  let render_incomplete p prefix candidates =
+  let render_id_complete p prefix candidates =
     let render_candidate prefix c = match String.length c with
     | 0 -> ""
     | blen ->
@@ -597,7 +602,7 @@ module Prompt = struct
         | true ->
             (* Hackish. E.g. we don't actually get candidates one per line
                in case of module types. *)
-            styled (style_complete_info ()) c
+            styled (style_id_complete_info ()) c
         | false ->
             match String.index c '\t' with
             | exception Not_found -> c (* should not happen but be robust *)
@@ -608,12 +613,28 @@ module Prompt = struct
                 let suf = String.sub c suf_start (tab - suf_start) in
                 let rst = ":" ^ String.sub c rst_start (blen - rst_start) in
                 Printf.sprintf "  %s%s%s"
-                  pre (styled style_complete_suff suf)
-                  (styled (style_complete_info ()) rst)
+                  pre (styled style_id_complete_suff suf)
+                  (styled (style_id_complete_info ()) rst)
     in
     let candidates = List.map (render_candidate prefix) candidates in
     render_ui ~active:false p; newline p;
     p.output (String.concat Tty.newline candidates); newline p
+
+  let render_id_info p id typ doc =
+    let render_id id = Tty.styled_str Tty.cap (style_id_info_id) id in
+    let render_type t = Tty.styled_str Tty.cap (style_id_info_type) t in
+    let typ = match Txt.lines typ with
+    | [""] | [] -> ""
+    | t :: ts ->
+        Printf.sprintf ":%s" @@
+          render_type (String.concat Tty.newline @@
+                       t :: List.map (Printf.sprintf "%s%s" margin) ts)
+    in
+    let acc = [Printf.sprintf "\r\n  %s%s" (render_id id) typ] in
+    let acc = List.rev_append (Txt.lines doc) acc in
+    let acc = List.rev_map (Printf.sprintf "%s%s" margin) acc in
+    render_ui ~active:false p; newline p;
+    p.output (String.concat Tty.newline acc); newline p
 
   (* Commands *)
 
@@ -660,17 +681,37 @@ module Prompt = struct
   | Error e -> error p "%s" e
   | Ok txt -> set_txt_value p txt
 
-  let complete p =
-    let ocaml_id_path_char = function
-    | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
-    | _ -> false
+  let ocaml_id_path_char = function
+  | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
+  | _ -> false
+
+  let ocaml_id_span p =
+    let s = Pstring.txt p in
+    let slen = String.length s and start = Pstring.cursor p in
+    if s = "" || start = slen then None else
+    if not (ocaml_id_path_char s.[start]) then None else
+    let id_start =
+      let rec loop s i =
+        if i >= 0 && ocaml_id_path_char s.[i] then loop s (i - 1) else i + 1
+      in
+      loop s start
     in
+    let id_end =
+      let rec loop s i =
+        if i < String.length s && ocaml_id_path_char s.[i] then loop s (i + 1)
+        else i - 1
+      in
+      loop s start
+    in
+    Some (String.sub s id_start (id_end - id_start + 1))
+
+  let id_complete p =
     let completion_start p =
       let rec loop s i =
         if i >= 0 && ocaml_id_path_char s.[i] then loop s (i - 1) else
         let ret = i + 1 in if ret = (Pstring.cursor p) then None else Some ret
       in
-      loop p.s (Pstring.cursor p - 1)
+      loop (Pstring.txt p) (Pstring.cursor p - 1)
     in
     match completion_start p.txt with
     | None -> ding p
@@ -679,11 +720,19 @@ module Prompt = struct
           p.txt <- Pstring.subst start (start + String.length old) w p.txt
         in
         let word = Pstring.txt_range start (Pstring.cursor p.txt - 1) p.txt in
-        match p.complete word with
+        match p.id_complete word with
         | Error e -> error p "%s" e
         | Ok (_, []) -> ding p
         | Ok (w, [_]) -> set_subst p start word w
-        | Ok (w, cs) -> render_incomplete p w cs; set_subst p start word w
+        | Ok (w, cs) -> render_id_complete p w cs; set_subst p start word w
+
+  let id_info p = match ocaml_id_span p.txt with
+  | None -> ding p
+  | Some id ->
+      match p.id_info id with
+      | Error e -> error p "%s" e
+      | Ok None -> ding p;
+      | Ok (Some (id, typ, doc)) -> render_id_info p id typ doc
 
   let ctrl_d p =
     if Pstring.txt p.txt = "" then `Eoi else (delete_next_char p; `Kont)
@@ -747,7 +796,9 @@ module Prompt = struct
     kont session_next_step, "next session step";
     (**)
     [`Ctrl (`Key 0x6C) (* l *)], kont clear_screen, "clear screen";
-    [`Tab], kont complete, "complete identifier";
+    [`Tab], kont id_complete, "complete identifier";
+    [`Ctrl (`Key 0x74 )(* t *)], kont id_info,
+    "show identifier type and documentation";
     [`Ctrl (`Key 0x78) (* x *); `Ctrl (`Key 0x65) (* e *)], kont edit,
     "edit input with external program (VISUAL or EDITOR env var)" ]
 
@@ -819,7 +870,7 @@ let help () =
 
 (* Completion *)
 
-module Complete = struct
+module Ocp_index = struct
   (* FIXME. POC hack via ocp-index, we likely want to that ourselves since we
      also need to peek in the OCaml toplevel symtable to be able to
      complete what the user defined and keep track of [open]s. *)
@@ -839,7 +890,7 @@ module Complete = struct
     | Error _ as e -> e
     | Ok true -> Ok ()
     | Ok false ->
-        Error (Fmt.str "Completion needs ocp-index. Try '%a'."
+        Error (Fmt.str "Completion and doc lookup needs ocp-index. Try '%a'."
                  pp_code "opam install ocp-index'")
     end
 
@@ -864,7 +915,7 @@ module Complete = struct
       then w ^ "." (* Likely Module name path segment. *)
       else w ^ " " (* Likely Module structure item segment. *)
 
-  let with_ocp_index = function
+  let id_complete = function
   | "" -> Ok ("", [])
   | w ->
       Result.bind (Lazy.force has_ocp_index) @@ fun () ->
@@ -875,6 +926,34 @@ module Complete = struct
           match complete_word w (Txt.lines s) with
           | w, ([_] as cs) -> Ok (finish_single_complete w, cs)
           | _ as ret -> Ok ret
+
+  let print_cmd id = ["ocp-index"; "print"; id; "%q \\t %t\\n(**)\\n%d" ]
+  let parse_id_info = function
+  | "" -> None
+  | o ->
+      match Txt_entries.of_string ~sep:"(**)" o with
+      | [] -> None
+      | [v] -> Some (v, "", "")
+      | (id_sig :: doc :: _) ->
+          match String.index id_sig '\t' with
+          | exception Not_found -> Some (o, "", doc)
+          | i ->
+              let len = String.length id_sig in
+              let id = String.sub id_sig 0 i in
+              let typ =
+                if i + 1 = len then "" else
+                String.sub id_sig (i + 1) (len - (i + 1))
+              in
+              Some (id, typ, doc)
+
+  let id_info = function
+  | "" -> Ok None
+  | id ->
+      Result.bind (Lazy.force has_ocp_index) @@ fun () ->
+      match (Cmd.read (print_cmd id)) with
+      | Error (2, _) -> Ok None
+      | Error (n, e) -> Error e
+      | Ok o -> Ok (parse_id_info o)
 end
 
 (* Toplevel readline *)
@@ -924,8 +1003,9 @@ let install_down () = match Tty.cap with
     | false -> log_disabled "%s" err_no_raw
     | true ->
         ignore (Stdin.set_raw_mode false);
-        let complete = Complete.with_ocp_index in
-        let p = Prompt.create ~complete ~readc:Stdin.readc () in
+        let id_complete = Ocp_index.id_complete in
+        let id_info = Ocp_index.id_info in
+        let p = Prompt.create ~id_complete ~id_info ~readc:Stdin.readc () in
         let module Top = (val !top : TOP) in
         original_ocaml_readline := !Top.read_interactive_input;
         Top.read_interactive_input := down_readline p;

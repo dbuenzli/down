@@ -120,7 +120,7 @@ module Private : sig
 
   val unicode_version : string
   (** [unicode_version] is the Unicode version on which the
-      {!Uucp.Break.tty_break_hint} data used by down is based. *)
+      {!Uucp.Break.tty_width_hint} data used by down is based. *)
 
   val tty_test : unit -> unit
   (** [tty_test ()] interactively tests how terminal input is parsed by

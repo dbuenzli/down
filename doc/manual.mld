@@ -21,7 +21,7 @@ a signal handler for [SIGWINCH].
 
 This is it.
 
-{1:input Input}
+{1:line_edition Line edition}
 
 [Down] provides classical readline capability. There is not much to be
 said about it and should be mostly natural if you are used to command
@@ -32,16 +32,19 @@ line interfaces. A summary of key bindings is available by invoking:
 ]}
 
 Unicode text is supported in a limited manner using a weak form of
-grapheme clusters based on the data of {!Uucp.Break.tty_break_hint}.
+grapheme clusters based on the data of {!Uucp.Break.tty_width_hint}.
 This should be good enough for basic REPL interaction. However it may
 fail (not too catastrophically) on some of UTF-8 encoded string
 literals – for example if they contain emoji skin tone modifiers.
 
-{1:history Input history}
+The key bindings cannot be customized at the moment (see
+{{:https://github.com/dbuenzli/down/issues/12}this issue}).
+
+{1:history History}
 
 To navigate input history use the up and down arrows of your keyboard.
 
-History is stored accross sessions in
+History is stored accross [ocaml] invocations in
 [~/.config/ocaml/history.ml]. This is a plain text file where history
 entries are separated by [(**)] lines. It may not be a syntactically
 valid OCaml file since history includes lines that did not parse.
@@ -51,16 +54,6 @@ The {!Down.History} module has a few functions to manipulate history:
 # Down.History.edit ()   (* edit the history in your editor *)
 # Down.History.clear ()  (* clear your history *)
 ]}
-
-{1:completion Completion}
-
-At the moment completion is provided by
-{{:https://github.com/OCamlPro/ocp-index}[ocp-index]}.
-
-The support is a bit crude, it is planned to improve it in the
-future. It is context and [open] unaware and only library symbols are completed
-regardless whether those are loaded or not. In particular at the moment
-symbols defined by inputing phrases are not completable.
 
 {1:sessions Sessions}
 
@@ -189,3 +182,34 @@ session used.
 If you recorded phrases but didn't save them they are persisted in the
 file [~/.config/ocaml/session/unsaved] and reloaded on the next
 [ocaml] execution.
+
+{1:id_completion Identifier completion and documentation}
+
+At the moment completion is provided by
+{{:https://github.com/OCamlPro/ocp-index}[ocp-index]} and is a bit
+crude. It is {{:https://github.com/dbuenzli/down/issues/11}planned} to
+improve it in the future but at the moment it is context and [open]
+unaware, only library identifiers are completed regardless whether
+those are loaded or not, identifiers defined during toploop
+interaction are not completable.
+
+To complete an identifier put your cursor at the point of completion and
+hit TAB:
+{[
+# List.con^t
+  List.cons : 'a -> 'a list -> 'a list
+  List.concat : 'a list list -> 'a list
+# List.con
+]}
+
+To get the type and documentation of an identifier put your cursor over the
+identifier and hit [C-t]:
+{[
+# List.append
+
+  List.append : 'a list -> 'a list -> 'a list
+  Concatenate two lists.  Same as the infix operator [@].
+  Not tail-recursive (length of the first argument).
+
+# List.append
+]}
