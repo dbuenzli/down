@@ -35,6 +35,14 @@ end
     backwards returns 0 if it cannot be found. *)
 module Txt : sig
 
+  val find_next : sat:(char -> bool) -> string -> start:int -> int
+  (** [find_next ~sat s ~start] is either the [Sys.max_string s] or
+      the index of the byte at or after [start] that satisfies [sat]. *)
+
+  val find_prev : sat:(char -> bool) -> string -> start:int -> int
+  (** [find_prev ~sat s ~start] is either the [0] or
+      the index of the byte at or before [start] that satisfies [sat]. *)
+
   (** {1:lines Lines} *)
 
   val lines : string -> string list
