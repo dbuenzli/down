@@ -31,6 +31,11 @@ line interfaces. A summary of key bindings is available by invoking:
 # Down.help ()   (* show key bindings and basic help *)
 ]}
 
+[Down] listens for keyboard input until you hit return and the input
+phrase ends with a trailing [;;] character sequence. At that point it
+gives it to [ocaml] for execution and gets back to you once it has an
+answer.
+
 Unicode text is supported in a limited manner using a weak form of
 grapheme clusters based on the data of {!Uucp.Break.tty_width_hint}.
 This should be good enough for basic REPL interaction. However it may

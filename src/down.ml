@@ -522,17 +522,6 @@ module Ocaml = struct
       loop s start
     in
     Some (String.sub s id_start (id_end - id_start + 1))
-
-  let has_semisemi s =
-    let rec loop s max i in_str lastc = match i > max with
-    | true -> false
-    | false when not in_str && lastc = ';' && s.[i] = ';' -> true
-    | false ->
-        let is_quote = s.[i] = '"' && not (lastc = '\\') in
-        let in_str = if is_quote then not in_str else in_str in
-        loop s max (i + 1) in_str s.[i]
-    in
-    loop s (String.length s - 1) 0 false '\x00'
 end
 
 (* Prompting *)
@@ -559,9 +548,22 @@ module Prompt = struct
        Notably is there does seem to be any good reason not to input
        successive ;; separated phrases, ocaml does that on .ml files.
        Cf. https://github.com/ocaml/ocaml/issues/8813 *)
-    let txt = Pstring.txt p.txt in
+    let ends_with_semisemi s =
+      let rec loop s i = match i < 0 with
+      | true -> false
+      | false ->
+          if Txt.is_white s.[i] then loop s (i - 1) else
+          if s.[i] <> ';' then false else
+          if i = 0 then false else s.[i - 1] = ';'
+      in
+      loop s (String.length s - 1)
+    in
     match input with
-    | `Enter when Ocaml.has_semisemi txt -> Some ((String.trim txt) ^ "\n")
+    | `Enter ->
+        let txt = Pstring.txt p.txt in
+        if ends_with_semisemi txt
+        then Some ((String.trim txt) ^ "\n") (* trim is for a cleaner hist. *)
+        else None
     | _ -> None
 
   let create
