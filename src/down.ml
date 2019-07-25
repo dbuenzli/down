@@ -497,6 +497,44 @@ module Session = struct
   let prev_step () = ignore (step_prev ())
 end
 
+(* Ocaml syntax munging *)
+
+module Ocaml = struct
+  let id_path_char = function
+  | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
+  | _ -> false
+
+  let id_span s ~start =
+    let slen = String.length s in
+    if start < 0 || start >= slen then None else
+    if not (id_path_char s.[start]) then None else
+    let id_start =
+      let rec loop s i =
+        if i >= 0 && id_path_char s.[i] then loop s (i - 1) else i + 1
+      in
+      loop s start
+    in
+    let id_end =
+      let rec loop s i =
+        if i < String.length s && id_path_char s.[i] then loop s (i + 1)
+        else i - 1
+      in
+      loop s start
+    in
+    Some (String.sub s id_start (id_end - id_start + 1))
+
+  let has_semisemi s =
+    let rec loop s max i in_str lastc = match i > max with
+    | true -> false
+    | false when not in_str && lastc = ';' && s.[i] = ';' -> true
+    | false ->
+        let is_quote = s.[i] = '"' && not (lastc = '\\') in
+        let in_str = if is_quote then not in_str else in_str in
+        loop s max (i + 1) in_str s.[i]
+    in
+    loop s (String.length s - 1) 0 false '\x00'
+end
+
 (* Prompting *)
 
 module Prompt = struct
@@ -521,20 +559,9 @@ module Prompt = struct
        Notably is there does seem to be any good reason not to input
        successive ;; separated phrases, ocaml does that on .ml files.
        Cf. https://github.com/ocaml/ocaml/issues/8813 *)
-    let has_semisemi s =
-      let rec loop s max i in_str lastc = match i > max with
-      | true -> false
-      | false when not in_str && lastc = ';' && s.[i] = ';' -> true
-      | false ->
-          let is_quote = s.[i] = '"' && not (lastc = '\\') in
-          let in_str = if is_quote then not in_str else in_str in
-          loop s max (i + 1) in_str s.[i]
-      in
-      loop s (String.length s - 1) 0 false '\x00'
-    in
     let txt = Pstring.txt p.txt in
     match input with
-    | `Enter when has_semisemi txt -> Some ((String.trim txt) ^ "\n")
+    | `Enter when Ocaml.has_semisemi txt -> Some ((String.trim txt) ^ "\n")
     | _ -> None
 
   let create
@@ -682,34 +709,10 @@ module Prompt = struct
   | Error e -> error p "%s" e
   | Ok txt -> set_txt_value p txt
 
-  let ocaml_id_path_char = function
-  | '0' .. '9' | 'A' .. 'Z' | 'a' .. 'z' | '.' | '\'' | '_' -> true
-  | _ -> false
-
-  let ocaml_id_span p =
-    let s = Pstring.txt p in
-    let slen = String.length s and start = Pstring.cursor p in
-    if s = "" || start = slen then None else
-    if not (ocaml_id_path_char s.[start]) then None else
-    let id_start =
-      let rec loop s i =
-        if i >= 0 && ocaml_id_path_char s.[i] then loop s (i - 1) else i + 1
-      in
-      loop s start
-    in
-    let id_end =
-      let rec loop s i =
-        if i < String.length s && ocaml_id_path_char s.[i] then loop s (i + 1)
-        else i - 1
-      in
-      loop s start
-    in
-    Some (String.sub s id_start (id_end - id_start + 1))
-
   let id_complete p =
     let completion_start p =
       let rec loop s i =
-        if i >= 0 && ocaml_id_path_char s.[i] then loop s (i - 1) else
+        if i >= 0 && Ocaml.id_path_char s.[i] then loop s (i - 1) else
         let ret = i + 1 in if ret = (Pstring.cursor p) then None else Some ret
       in
       loop (Pstring.txt p) (Pstring.cursor p - 1)
@@ -727,13 +730,14 @@ module Prompt = struct
         | Ok (w, [_]) -> set_subst p start word w
         | Ok (w, cs) -> render_id_complete p w cs; set_subst p start word w
 
-  let id_info p = match ocaml_id_span p.txt with
-  | None -> ding p
-  | Some id ->
-      match p.id_info id with
-      | Error e -> error p "%s" e
-      | Ok None -> ding p;
-      | Ok (Some (id, typ, doc)) -> render_id_info p id typ doc
+  let id_info p =
+    match Ocaml.id_span (Pstring.txt p.txt) ~start:(Pstring.cursor p.txt) with
+    | None -> ding p
+    | Some id ->
+        match p.id_info id with
+        | Error e -> error p "%s" e
+        | Ok None -> ding p;
+        | Ok (Some (id, typ, doc)) -> render_id_info p id typ doc
 
   let ctrl_d p =
     if Pstring.txt p.txt = "" then `Eoi else (delete_next_char p; `Kont)
