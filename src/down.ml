@@ -23,6 +23,7 @@ end
 
 (* Set to the right implementation by Down_top or Down_nattop *)
 let top : (module TOP) ref = ref (module Nil : TOP)
+let original_ocaml_readline = ref (fun _ _ _ -> assert false)
 
 let use_file ?(silent = false) file =
   let module Top = (val !top : TOP) in
@@ -55,9 +56,8 @@ let pp_doc_section = Fmt.tty style_doc_section Fmt.string
 let pp_code = Fmt.tty style_code Fmt.string
 let pp_faint () = Fmt.tty (add_faint []) Fmt.string
 let log_error fmt = Fmt.pr ("%a: " ^^ fmt ^^ "@.") pp_error "Error"
+let log_warning fmt = Fmt.pr ("%a: " ^^ fmt ^^ "@.") pp_warn "Warning"
 let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
-let log_readline_disabled fmt =
-  Fmt.pr ("%a: Down line edition disabled. " ^^ fmt ^^ "@.") pp_warn "Warning"
 
 (* Prompt history *)
 
@@ -401,7 +401,9 @@ module Session = struct
 
   let record : string list ref = ref []
   let set_record phrases = record := List.rev phrases
-  let rem_last_recorded () = record := List.tl !record
+  let rem_last_recorded () = match !record with
+  | [] -> () | _ :: rs -> record := rs
+
   let add_recorded s = match String.trim s with
   | s when String.length s >= 5 && String.sub s 0 5 = "#quit" -> ()
   | s -> record := s :: !record
@@ -409,7 +411,11 @@ module Session = struct
   let add_if_recording s = if recording () then add_recorded s
   let recorded () = List.rev !record
   let record () =
-    if recording () then rem_last_recorded () else set_recording true
+    let module Top = (val !top : TOP) in
+    match !Top.read_interactive_input == !original_ocaml_readline with
+    | true -> log_error "Sorry, recording needs Down's line edition."
+    | false -> (* That could still not be down's readline but, unlikely *)
+        if recording () then rem_last_recorded () else set_recording true
 
   let stop () = if recording () then (rem_last_recorded (); set_recording false)
   let revise () =
@@ -973,7 +979,6 @@ let blit_toploop_buf s i b blen =
   Bytes.blit_string s i b 0 len;
   len, (if snext < slen then Some (s, snext) else None)
 
-let original_ocaml_readline = ref (fun _ _ _ -> assert false)
 let down_readline p =
   let rem = ref None in
   fun prompt b len -> match !rem with
@@ -1001,25 +1006,31 @@ let pp_announce ppf () =
   Fmt.pf ppf "%a %%VERSION%% loaded. Type %a for more info."
     pp_doc_section "Down" pp_code "Down.help ()"
 
-let err_no_ansi = "No ANSI terminal capability detected."
-let err_no_raw = "Failed to set stdin in raw mode."
-let install_down () = match Tty.cap with
-| `None -> log_readline_disabled "%s" err_no_ansi
-| `Ansi ->
-    match Stdin.set_raw_mode true with
-    | false -> log_readline_disabled "%s" err_no_raw
-    | true ->
-        ignore (Stdin.set_raw_mode false);
-        let id_complete = Ocp_index.id_complete in
-        let id_info = Ocp_index.id_info in
-        let p = Prompt.create ~id_complete ~id_info ~readc:Stdin.readc () in
-        let module Top = (val !top : TOP) in
-        original_ocaml_readline := !Top.read_interactive_input;
-        Top.read_interactive_input := down_readline p;
-        install_sigwinch_interrupt ();
-        History.load (); at_exit History.save;
-        Session.load_unsaved_record (); at_exit Session.save_unsaved_record;
-        Fmt.pr "%a@." pp_announce ()
+let err_no_ansi = "no ANSI terminal capability detected."
+let err_no_raw = "failed to set stdin in raw mode."
+let install_down () =
+  let line_edition = match Tty.cap with
+  | `None -> Error err_no_ansi
+  | `Ansi ->
+      match Stdin.set_raw_mode true with
+      | false -> Error err_no_raw
+      | true -> ignore (Stdin.set_raw_mode false); Ok ()
+  in
+  let announce () = Fmt.pr "%a@." pp_announce () in
+  let module Top = (val !top : TOP) in
+  History.load (); at_exit History.save;
+  Session.load_unsaved_record (); at_exit Session.save_unsaved_record;
+  original_ocaml_readline := !Top.read_interactive_input;
+  match line_edition with
+  | Ok () ->
+      let id_complete = Ocp_index.id_complete in
+      let id_info = Ocp_index.id_info in
+      let p = Prompt.create ~id_complete ~id_info ~readc:Stdin.readc () in
+      Top.read_interactive_input := down_readline p;
+      install_sigwinch_interrupt ();
+      announce ()
+  | Error err ->
+      announce (); log_warning "Down line edition disabled: %s" err
 
 (* Private *)
 
