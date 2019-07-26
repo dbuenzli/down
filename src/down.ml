@@ -234,7 +234,7 @@ module History = struct
 
   let file () =
     Result.bind (Dir.config ()) @@ fun dir ->
-    Ok (Filename.concat dir "ocaml/history.ml")
+    Ok (Filename.concat dir (Filename.concat "ocaml" "history.ml"))
 
   let load () =
     log_on_error ~use:() @@
@@ -271,7 +271,7 @@ module Session = struct
   type name = string
   let dir () =
     Result.bind (Dir.config ()) @@ fun dir ->
-    Ok (Filename.concat dir "ocaml/session")
+    Ok (Filename.concat dir (Filename.concat "ocaml" "session"))
 
   let dir_file fn = Result.bind (dir ()) @@ fun d -> Ok (Filename.concat d fn)
   let last_session_file () = dir_file "last"
