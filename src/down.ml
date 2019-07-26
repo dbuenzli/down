@@ -56,8 +56,8 @@ let pp_code = Fmt.tty style_code Fmt.string
 let pp_faint () = Fmt.tty (add_faint []) Fmt.string
 let log_error fmt = Fmt.pr ("%a: " ^^ fmt ^^ "@.") pp_error "Error"
 let log_on_error ~use = function Error e -> log_error "%s" e; use | Ok v -> v
-let log_disabled fmt =
-  Fmt.pr ("%a: Down %%VERSION%% disabled. " ^^ fmt ^^ "@.") pp_warn "Warning"
+let log_readline_disabled fmt =
+  Fmt.pr ("%a: Down line edition disabled. " ^^ fmt ^^ "@.") pp_warn "Warning"
 
 (* Prompt history *)
 
@@ -1004,10 +1004,10 @@ let pp_announce ppf () =
 let err_no_ansi = "No ANSI terminal capability detected."
 let err_no_raw = "Failed to set stdin in raw mode."
 let install_down () = match Tty.cap with
-| `None -> log_disabled "%s" err_no_ansi
+| `None -> log_readline_disabled "%s" err_no_ansi
 | `Ansi ->
     match Stdin.set_raw_mode true with
-    | false -> log_disabled "%s" err_no_raw
+    | false -> log_readline_disabled "%s" err_no_raw
     | true ->
         ignore (Stdin.set_raw_mode false);
         let id_complete = Ocp_index.id_complete in
