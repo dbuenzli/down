@@ -207,8 +207,8 @@ hit TAB:
 # List.con
 ]}
 
-To get the type and documentation of an identifier put your cursor over the
-identifier and hit [C-t]:
+Hitting [C-t] will give you the type and documentation of the identifier
+currently down your cursor (or right before it):
 {[
 # List.append
 
