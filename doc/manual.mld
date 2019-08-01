@@ -207,10 +207,11 @@ hit TAB:
 # List.con
 ]}
 
-Hitting [C-t] will give you the type and documentation of the identifier
-currently down your cursor (or right before it):
+Hitting [C-t] with the cursor over an identifier or on the whitespace
+right after it shows its documentation:
+
 {[
-# List.append
+# List.append^C-t
 
   List.append : 'a list -> 'a list -> 'a list
   Concatenate two lists.  Same as the infix operator [@].

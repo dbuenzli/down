@@ -511,15 +511,12 @@ module Ocaml = struct
   | _ -> false
 
   let id_span s ~start =
-    let slen = String.length s in
-    let valid i = i >= 0 && i < slen in
-    let rec loop i c y n = if valid i && c i then loop (i + y) c y n else i + n in
-    let id_end =
-      if valid start && id_path_char s.[start]
-      then loop (start + 1) (fun i -> id_path_char s.[i]) 1 (-1)
-      else loop (start - 1) (fun i -> not (id_path_char s.[i])) (-1) 0 in
-    if not (valid id_end) then None else
-    let id_start = loop (id_end - 1) (fun i -> id_path_char s.[i]) (-1) 1 in
+    let id_char = Txt.find_prev ~sat:id_path_char s ~start in
+    let keep_prev = Txt.keep_prev_len ~sat:id_path_char s ~start:id_char in
+    let id_start = id_char - keep_prev + 1 in
+    let id_len = Txt.keep_next_len ~sat:id_path_char s ~start:id_start in
+    let id_end = id_start + id_len - 1 in
+    if id_end < id_start then None else
     Some (String.sub s id_start (id_end - id_start + 1))
 end
 
