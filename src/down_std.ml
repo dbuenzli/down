@@ -92,6 +92,23 @@ module Txt = struct
     let i = if start > max then max else start in
     loop s i
 
+  let keep_next_len ~sat s ~start =
+    let rec loop s max i count =
+      if i > max then count else
+      if sat s.[i] then loop s max (i + 1) (count + 1) else count
+    in
+    let max = String.length s - 1 and i = if start < 0 then 0 else start in
+    loop s max i 0
+
+  let keep_prev_len ~sat s ~start =
+    let rec loop s i count =
+      if i < 0 then count else
+      if sat s.[i] then loop s (i - 1) (count + 1) else count
+    in
+    let max = String.length s - 1 in
+    let i = if start > max then max else start in
+    loop s i 0
+
   (* Lines *)
 
   let lines s =

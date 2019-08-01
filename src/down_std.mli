@@ -43,6 +43,14 @@ module Txt : sig
   (** [find_prev ~sat s ~start] is either the [0] or
       the index of the byte at or before [start] that satisfies [sat]. *)
 
+  val keep_next_len : sat:(char -> bool) -> string -> start:int -> int
+  (** [keep_next_len ~sat s ~start] is the number of consecutive
+      next [sat] satisfying bytes starting at [start], included. *)
+
+  val keep_prev_len : sat:(char -> bool) -> string -> start:int -> int
+  (** [keep_prev_len ~sat s ~start] is the number of consecutive
+      previous [sat] satisfying bytes starting at [start], included. *)
+
   (** {1:lines Lines} *)
 
   val lines : string -> string list
