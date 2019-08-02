@@ -1,5 +1,6 @@
 - Identifier documentation access (`C-t`): allow cursor to be on the
   whitespace or non-identifier characters after the identifier.
+  Thanks to Zeng Li.
 - Be more subtle when line edition is not available. Let the Down
   API work reasonably well and/or error gracefully (#17).
 - Less clever, but more robust, end of user input detection (#14).
