@@ -904,9 +904,13 @@ module Ocp_index = struct
       let id = String.trim (List.hd (String.split_on_char '\t' r)) in
       if id = "" then acc else Ctrie.add (string_to_list id) (Some ()) acc
     in
-    let ids = List.fold_left add_id Ctrie.empty results in
+    let res =
+      List.fold_right (fun r acc -> if r = "" then acc else r :: acc)
+        results []
+    in
+    let ids = List.fold_left add_id Ctrie.empty res in
     let word, _ = Ctrie.find_fork (string_to_list word) ids in
-    (string_of_list word, results)
+    (string_of_list word, res)
 
   let finish_single_complete = function
   | "" -> ""
@@ -926,8 +930,8 @@ module Ocp_index = struct
       Result.bind (Result.map_error snd @@ Cmd.read (complete_cmd w)) @@
       fun cs -> match String.trim cs with
       | "" -> Ok (w, [])
-      | s ->
-          match complete_word w (Txt.lines s) with
+      | _ ->
+          match complete_word w (Txt.lines cs) with
           | w, ([_] as cs) -> Ok (finish_single_complete w, cs)
           | _ as ret -> Ok ret
 
