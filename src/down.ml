@@ -924,10 +924,10 @@ module Ocp_index = struct
   | w ->
       Result.bind (Lazy.force has_ocp_index) @@ fun () ->
       Result.bind (Result.map_error snd @@ Cmd.read (complete_cmd w)) @@
-      fun cs -> match String.trim cs with
-      | "" -> Ok (w, [])
-      | s ->
-          match complete_word w (Txt.lines s) with
+      fun s -> match List.rev (Txt.lines s) with
+      | [] | [""] | [""; ""] -> Ok (w, [])
+      | "" :: rlines | rlines ->
+          match complete_word w (List.rev rlines) with
           | w, ([_] as cs) -> Ok (finish_single_complete w, cs)
           | _ as ret -> Ok ret
 
