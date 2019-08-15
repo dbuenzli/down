@@ -27,8 +27,3 @@ install:
   ["install" "-d" "%{lib}%/ocaml/"]
   ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]
 ]
-
-remove:
-[[
-  "rm" "-f" "%{lib}%/ocaml/down.top" "%{lib}%/ocaml/down.nattop"
-]]
