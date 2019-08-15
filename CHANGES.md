@@ -1,3 +1,5 @@
+v0.0.2 2019-08-15 Zagreb
+------------------------
 
 - Identifier documentation access (`C-t`): allow cursor to be on the
   whitespace or non-identifier characters after the identifier.
