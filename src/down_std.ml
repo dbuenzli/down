@@ -267,10 +267,10 @@ module Dir = struct
   let config () = match Env.get "XDG_CONFIG_HOME" with
   | Some h -> Ok h
   | None ->
-      match if Sys.win32 then Env.get "%LOCALAPPDATA%" else None with
+      match if Sys.win32 then Env.get "%APPDATA%" else None with
       | Some h -> Ok h
       | None ->
-          match Env.get (if Sys.win32 then "%HomePath%" else "HOME") with
+          match Env.get "HOME" with
           | Some h -> Ok (Filename.concat h ".config")
           | None -> Error "Could not determine a user configuration directory"
 
