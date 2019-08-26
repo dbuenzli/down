@@ -511,6 +511,7 @@ module Ocaml = struct
   | _ -> false
 
   let id_span s ~start =
+    if s = "" then None else
     let id_char = Txt.find_prev ~sat:id_path_char s ~start in
     if not (id_path_char s.[id_char]) then None else
     let keep_prev = Txt.keep_prev_len ~sat:id_path_char s ~start:id_char in

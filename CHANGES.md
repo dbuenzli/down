@@ -1,3 +1,6 @@
+
+- Fix crash on get type of empty input. Thanks to @kakadu for the report.
+
 v0.0.2 2019-08-15 Zagreb
 ------------------------
 
