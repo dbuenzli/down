@@ -11,7 +11,7 @@ open Down_std
 module type TOP = sig
   val read_interactive_input : (string -> bytes -> int -> int * bool) ref
   val use_file : Format.formatter -> string -> bool
-  val use_silently : Format.formatter -> string -> bool
+  val use_silently : Format.formatter -> Toploop.input -> bool
 end
 
 module Nil = struct
@@ -28,7 +28,7 @@ let original_ocaml_readline = ref (fun _ _ _ -> assert false)
 let use_file ?(silent = false) file =
   let module Top = (val !top : TOP) in
   match silent with
-  | true -> Top.use_silently Format.std_formatter file
+  | true -> Top.use_silently Format.std_formatter (Toploop.File file)
   | false -> Top.use_file Format.std_formatter file
 
 (* Logging and formatting styles *)
