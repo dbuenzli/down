@@ -112,7 +112,7 @@ module Private : sig
   module type TOP = sig
     val read_interactive_input : (string -> bytes -> int -> int * bool) ref
     val use_file : Format.formatter -> string -> bool
-    val use_silently : Format.formatter -> string -> bool
+    val use_silently : Format.formatter -> Toploop.input -> bool
   end
 
   val set_top : (module TOP) -> unit

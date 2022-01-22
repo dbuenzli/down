@@ -9,7 +9,7 @@ dev-repo: "git+https://erratique.ch/repos/down.git"
 bug-reports: "https://github.com/dbuenzli/down/issues"
 license: ["ISC"]
 tags: ["dev" "toplevel" "repl" "org:erratique"]
-depends: ["ocaml" {>= "4.04.0"}
+depends: ["ocaml" {>= "4.14.0"}
           "ocamlfind" {build}
           "ocamlbuild" {build}
           "topkg" {build & >= "1.0.3"}
