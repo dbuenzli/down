@@ -1,4 +1,5 @@
-
+v0.0.4 2022-01-26 La Forclaz (VS)
+---------------------------------
 
 - Upgrade Unicode TTY width data to 14.0.0.
 

@@ -77,7 +77,7 @@ let default =
          "--lib-dir" "%{lib}%"]]|}
     |> tag B0_opam.tag
     |> add B0_opam.Meta.depends
-      [ "ocaml", {|>= "4.04.0"|};
+      [ "ocaml", {|>= "4.04.0" & < "4.14.0"|};
         "ocamlfind", {|build|};
         "ocamlbuild", {|build|};
         "topkg", {|build & >= "1.0.3"|};
