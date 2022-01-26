@@ -1,3 +1,10 @@
+v0.1.0 2022-01-26 La Forclaz (VS)
+---------------------------------
+
+- Support for OCaml 4.14. Thanks to Kate (@kit-ty-kate) for 
+  the patch.
+- Build system: use `opam var` instead of `opam config var`.
+
 v0.0.4 2022-01-26 La Forclaz (VS)
 ---------------------------------
 
