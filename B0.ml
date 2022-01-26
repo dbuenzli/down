@@ -2,26 +2,56 @@ open B0_kit.V000
 open B00_std
 open Result.Syntax
 
+(* OCaml libraries *)
+
+let down = B0_ocaml.libname "down"
+let down_nattop = B0_ocaml.libname "down.nattop"
+let uucp = B0_ocaml.libname "uucp"
+let compiler_libs_toplevel = B0_ocaml.libname "compiler-libs.toplevel"
+
+(* Down libraries *)
 
 let down_tty_width_srcs =
   Fpath.[ `File (v "src/down_tty_width.ml");
           `File (v "src/down_tty_width.mli") ]
 
+let base_srcs =
+  Fpath.(`File (v "src/down.mli") :: `File (v "src/down.ml") ::
+         `File (v "src/down_std.mli") :: `File (v "src/down_std.ml") ::
+         `File (v "src/down_stubs.c") ::
+         down_tty_width_srcs)
+
+let down_lib =
+  let doc = "An OCaml toplevel upgrade" in
+  let requires = [compiler_libs_toplevel] in
+  let srcs =
+    Fpath.(`File (v "src/down_top.mli") :: `File (v "src/down_top.ml") ::
+           base_srcs)
+  in
+  B0_ocaml.lib down ~doc ~requires ~srcs
+
+let down_nattop_lib =
+  let doc = "Down ocamlnat support" in
+  let requires = [compiler_libs_toplevel] in
+  let srcs =
+    Fpath.(`File (v "src/down_nattop.mli") :: `File (v "src/down_nattop.mli") ::
+           base_srcs)
+  in
+  B0_ocaml.lib down_nattop ~doc ~requires ~srcs
+
 (* TTY width data generation *)
 
-let uucp = B0_ocaml.libname "uucp"
-
 let tty_width_gen =
+  let doc = "Generate OCaml source for TTY width data" in
   let requires = [uucp] in
   let srcs = [`File (Fpath.v "tty_width/gen.ml")] in
-  let doc = "Generate OCaml source for TTY width data" in
-  B0_ocaml.exe ~requires ~doc "tty-width-gen" ~srcs
+  B0_ocaml.exe "tty-width-gen" ~doc ~requires ~srcs
 
 let tty_width_test =
+  let doc = "Test generated TTY width data" in
   let requires = [uucp] in
   let srcs = (`File (Fpath.v "tty_width/test.ml")) :: down_tty_width_srcs in
-  let doc = "Test generated TTY width data" in
-  B0_ocaml.exe ~requires ~doc "tty-width-test" ~srcs
+  B0_ocaml.exe "tty-width-test" ~doc ~requires ~srcs
 
 (* Packs *)
 
@@ -59,4 +89,4 @@ let default =
        ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]]|}
   in
   B0_pack.v "default" ~doc:"down package" ~meta ~locked:true @@
-  []
+  [down_lib; down_nattop_lib]
