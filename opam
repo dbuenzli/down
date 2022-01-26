@@ -17,14 +17,14 @@ depends: ["ocaml" {>= "4.14.0"}
 build: [["ocaml" "pkg/pkg.ml" "build"
          "--dev-pkg" "%{dev}%"
          "--lib-dir" "%{lib}%"]]
-install: 
+install:
       # Following is only to deal with
       # https://caml.inria.fr/mantis/view.php?id=7808
       [["install" "-d" "%{lib}%/ocaml/"]
        ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]]
 description: """
 Down is an unintrusive user experience upgrade for the `ocaml`
-toplevel (REPL). 
+toplevel (REPL).
 
 Simply load the zero dependency `Down` library in the `ocaml` toplevel
 and you get line edition, history, session support and identifier
