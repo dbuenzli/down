@@ -19,16 +19,14 @@ brzo ocaml --top
 # Generating TTY width data
 
 ```
-ocamlbuild -use-ocamlfind tty_width/gen.native
-./gen.native -t # test and get info about map
-./gen.native > src/down_tty_width.ml
+b0 -a tty-width-gen -- -t  # test and get info about map
+b0 -a tty-width-gen -- > src/down_tty_width.ml
 ```
 
 Test the module:
 
 ```
-ocamlbuild -use-ocamlfind tty_width/test.native
-./test.native
+b0 -a tty-width-test
 ```
 
 

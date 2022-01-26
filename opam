@@ -12,7 +12,8 @@ tags: ["dev" "toplevel" "repl" "org:erratique"]
 depends: ["ocaml" {>= "4.04.0"}
           "ocamlfind" {build}
           "ocamlbuild" {build}
-          "topkg" {build & >= "1.0.3"}]
+          "topkg" {build & >= "1.0.3"}
+          "uucp" {dev}]
 build: [["ocaml" "pkg/pkg.ml" "build"
          "--dev-pkg" "%{dev}%"
          "--lib-dir" "%{lib}%"]]

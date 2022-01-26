@@ -2,7 +2,32 @@ open B0_kit.V000
 open B00_std
 open Result.Syntax
 
+
+let down_tty_width_srcs =
+  Fpath.[ `File (v "src/down_tty_width.ml");
+          `File (v "src/down_tty_width.mli") ]
+
+(* TTY width data generation *)
+
+let uucp = B0_ocaml.libname "uucp"
+
+let tty_width_gen =
+  let requires = [uucp] in
+  let srcs = [`File (Fpath.v "tty_width/gen.ml")] in
+  let doc = "Generate OCaml source for TTY width data" in
+  B0_ocaml.exe ~requires ~doc "tty-width-gen" ~srcs
+
+let tty_width_test =
+  let requires = [uucp] in
+  let srcs = (`File (Fpath.v "tty_width/test.ml")) :: down_tty_width_srcs in
+  let doc = "Test generated TTY width data" in
+  B0_ocaml.exe ~requires ~doc "tty-width-test" ~srcs
+
 (* Packs *)
+
+let dev =
+  B0_pack.v "tty-width" ~doc:"down TTY width support package" ~locked:false @@
+  [tty_width_test; tty_width_gen]
 
 let default =
   let meta =
@@ -25,7 +50,8 @@ let default =
       [ "ocaml", {|>= "4.04.0"|};
         "ocamlfind", {|build|};
         "ocamlbuild", {|build|};
-        "topkg", {|build & >= "1.0.3"|}]
+        "topkg", {|build & >= "1.0.3"|};
+        "uucp", {|dev|}]
     |> add B0_opam.Meta.install {|
       # Following is only to deal with
       # https://caml.inria.fr/mantis/view.php?id=7808
@@ -33,4 +59,4 @@ let default =
        ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]]|}
   in
   B0_pack.v "default" ~doc:"down package" ~meta ~locked:true @@
-  B0_unit.list ()
+  []
