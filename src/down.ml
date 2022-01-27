@@ -148,7 +148,7 @@ module Pstring = struct
     in
     { s; cursor = r0 + blen; mark }
 
-  let insert bytes p = subst p.cursor p.cursor bytes p
+  let insert bytes p = subst ~start:p.cursor ~stop:p.cursor bytes p
   let delete_next_char p =
     if p.cursor = String.length p.s then p else
     let stop = Txt.find_next_gc p.s ~after:p.cursor in
@@ -721,9 +721,11 @@ module Prompt = struct
     | None -> ding p
     | Some start ->
         let set_subst p start old w =
-          p.txt <- Pstring.subst start (start + String.length old) w p.txt
+          let stop = start + String.length old in
+          p.txt <- Pstring.subst ~start ~stop w p.txt
         in
-        let word = Pstring.txt_range start (Pstring.cursor p.txt - 1) p.txt in
+        let last = Pstring.cursor p.txt - 1 in
+        let word = Pstring.txt_range ~first:start ~last p.txt in
         match p.id_complete word with
         | Error e -> error p "%s" e
         | Ok (_, []) -> ding p

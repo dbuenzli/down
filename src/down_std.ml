@@ -623,7 +623,7 @@ module Editor = struct
   let edit_string ~ext s =
     Result.bind (find ()) @@ fun editor ->
     Result.bind (File.tmp ~suff:ext ()) @@ fun tmp ->
-    Result.bind (if s = "" then Ok () else File.write tmp s) @@ fun () ->
+    Result.bind (if s = "" then Ok () else File.write ~file:tmp s) @@ fun () ->
     Result.bind (Result.map_error snd @@ Cmd.run (editor @ [tmp])) @@ fun () ->
     Result.bind ( File.read tmp) @@ fun txt ->
     Ok (String.trim txt)
