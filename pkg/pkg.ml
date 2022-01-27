@@ -7,7 +7,7 @@ let lib_dir =
   let doc = "Use $(docv) as the lib directory" in
   let absent () =
     let opam = Conf.tool "opam" `Host_os in
-    OS.Cmd.(run_out Cmd.(opam % "config" % "var" % "lib") |> to_string)
+    OS.Cmd.(run_out Cmd.(opam % "var" % "lib") |> to_string)
   in
   Conf.(discovered_key "lib-dir" fpath ~absent ~doc)
 
