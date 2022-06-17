@@ -1022,6 +1022,7 @@ let install_down () =
       let p = Prompt.create ~id_complete ~id_info ~readc:Stdin.readc () in
       Top.read_interactive_input := down_readline p;
       install_sigwinch_interrupt ();
+      Stdin.enable_bracketed_paste stdout;
       announce ()
   | Error err ->
       announce (); log_warning "Down line edition disabled: %s" err

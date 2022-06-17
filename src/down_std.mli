@@ -337,6 +337,12 @@ module Stdin : sig
   (** [set_raw_mode raw] sets stdin raw mode according to [raw]
         returns [false] if the operation fails. *)
 
+  val enable_bracketed_paste : out_channel -> unit
+  (** [enable_bracketed_paste oc] enables
+      {{:http://www.xfree86.org/4.7.0/ctlseqs.html#Bracketed%20Paste%20Mode}
+      bracketed paste mode} on [oc]. This is disabled at exit on the
+      same channel via an {!at_exit} handler. *)
+
   val readc : unit -> int option
   (** [readc ()] reads a single byte from [stdin]. This is a
         blocking [read]. [None] is returned in case the operation

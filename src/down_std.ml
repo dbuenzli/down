@@ -476,6 +476,48 @@ module Tty = struct
     | `Shift (`Arrow dir) -> pp ppf "shift-%s" (dir_to_string dir)
     | `Unknown s -> pp ppf "unknown (%S)" s
 
+  let read_bracketed_paste readc =
+    let err = `Unknown "bracketed paste error" in
+    let i = Buffer.create 1024 in
+    let addc = Buffer.add_char and adds = Buffer.add_string in
+    let rec retry readc i b =
+      if Int.equal b 0x1b then try_stop readc i else
+      (addc i (Char.chr b); loop readc i)
+    and try_stop readc i = match readc () with
+    | None -> err
+    | Some 0x5B (* '[' *) ->
+        let pre = "\x1B[" in
+        begin match readc () with
+        | None -> err
+        | Some 0x32 (* '2' *) ->
+            begin match readc () with
+            | None -> err
+            | Some 0x30 (* '0' *) ->
+                begin match readc () with
+                | None -> err
+                | Some 0x31 (* '1' *) ->
+                    begin match readc () with
+                    | None -> err
+                    | Some 0x7E (* ~ *) -> `Bytes (Buffer.contents i)
+                    | Some b ->
+                        adds i pre; addc i '2'; addc i '0'; addc i '1';
+                        retry readc i b
+                    end
+                | Some b -> adds i pre; addc i '2'; addc i '0'; retry readc i b
+                end
+            | Some b -> adds i pre; addc i '2'; retry readc i b
+            end
+        | Some b -> adds i pre; retry readc i b
+        end
+    | Some b -> addc i '\x1B'; retry readc i b
+    and loop readc i = match readc () with
+    | None -> err
+    | Some 0x1b -> try_stop readc i
+    | Some 0x0d (* CR *) -> addc i '\n'; loop readc i
+    | Some b -> addc i (Char.chr b); loop readc i
+    in
+    loop readc i
+
   let read_esc readc : input = match readc () with
   | None -> `Escape
   | Some 0x5B (* '[' *) ->
@@ -508,6 +550,23 @@ module Tty = struct
                       `Unknown (strf "%s;%c%c" pre (Char.chr m) (Char.chr b))
                   end
               | Some b -> `Unknown (strf "%s;%c" pre (Char.chr b))
+              end
+          | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
+          end
+      | Some 0x32 ->
+          let pre = "ESC[2" in
+          begin match readc () with
+          | None -> `Unknown pre
+          | Some 0x30 (* 0 *) ->
+              begin match readc () with
+              | None -> `Unknown (strf "%s0" pre)
+              | Some 0x30 (* 0 *) ->
+                  begin match readc () with
+                  | None -> `Unknown (strf "%s00" pre)
+                  | Some 0x7E (* ~ *) -> read_bracketed_paste readc
+                  | Some b -> `Unknown (strf "%s00%c" pre (Char.chr b))
+                  end
+              | Some b -> `Unknown (strf "%s0%c" pre (Char.chr b))
               end
           | Some b -> `Unknown (strf "%s%c" pre (Char.chr b))
           end
@@ -587,6 +646,13 @@ module Stdin = struct
   external readc : unit -> int = "ocaml_down_stdin_readc"
   let readc () = match readc () with
   | -1 | -2 -> None | -3 -> raise (Sys_error "stdin read error") | n -> Some n
+
+  let enable_bracketed_paste oc =
+    let output_string_noerr oc s () = try output_string oc s; flush oc with
+    | Sys_error _ -> ()
+    in
+    output_string_noerr oc "\x1B[?2004h" ();
+    at_exit (output_string_noerr oc "\x1B[?2004l")
 
   let () =
     let disable_raw () = ignore (set_raw_mode false) in

@@ -1,3 +1,8 @@
+
+- Implement bracketed paste. Improves responsiveness
+  on large code pastes (#16). Thanks to Etienne Millon
+  for the suggestion and Hannes Mehnert for the report.
+
 v0.1.0 2022-01-26 La Forclaz (VS)
 ---------------------------------
 
