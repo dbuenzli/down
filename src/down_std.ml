@@ -461,7 +461,7 @@ module Tty = struct
     | `Bytes b ->
         if String.length b = 1 && Char.code b.[0] < 0x20
         then pp ppf "\"\\x%02X\"" (Char.code b.[0])
-        else pp ppf "\"%s\"" b
+        else pp ppf "%S" b
     | `Ctrl (`Key c) -> pp ppf "C-%a" pp_char c
     | `Ctrl (`Arrow dir) -> pp ppf "C-%s" (dir_to_string dir)
     | `Delete -> pp ppf "delete"
