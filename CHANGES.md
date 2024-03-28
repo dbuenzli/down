@@ -1,4 +1,5 @@
 
+- Update Unicode TTY width data to Unicode 15.1.0 
 - Implement bracketed paste. Improves responsiveness
   on large code pastes (#16). Thanks to Etienne Millon
   for the suggestion and Hannes Mehnert for the report.
@@ -13,7 +14,7 @@ v0.1.0 2022-01-26 La Forclaz (VS)
 v0.0.4 2022-01-26 La Forclaz (VS)
 ---------------------------------
 
-- Upgrade Unicode TTY width data to 14.0.0.
+- Upgrade Unicode TTY width data to Unicode 14.0.0.
 
 v0.0.3 2020-07-12 Zagreb
 ------------------------
