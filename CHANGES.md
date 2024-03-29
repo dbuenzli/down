@@ -1,3 +1,5 @@
+v0.2.0 2024-03-29 La Forclaz (VS)
+---------------------------------
 
 - Update Unicode TTY width data to Unicode 15.1.0 
 - Implement bracketed paste. Improves responsiveness
