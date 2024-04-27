@@ -994,7 +994,7 @@ let down_readline p =
 external sigwinch : unit -> int = "ocaml_down_sigwinch"
 let install_sigwinch_interrupt () =
   (* Sufficient to interrupt the event loop on window size changes. *)
-  Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ()))
+  if Sys.unix then Sys.set_signal (sigwinch ()) (Sys.Signal_handle (fun _ -> ()))
 
 let pp_announce ppf () =
   Fmt.pf ppf "%a %%VERSION%% loaded. Type %a for more info."
