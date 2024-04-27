@@ -267,17 +267,23 @@ module Dir = struct
   let config () = match Env.get "XDG_CONFIG_HOME" with
   | Some h -> Ok h
   | None ->
-      match if Sys.win32 then Env.get "%APPDATA%" else None with
+      match if Sys.win32 then Env.get "APPDATA" else None with
       | Some h -> Ok h
       | None ->
           match Env.get "HOME" with
           | Some h -> Ok (Filename.concat h ".config")
           | None -> Error "Could not determine a user configuration directory"
 
-  let mkdir_win32 dir = ["mkdir"; dir]
-  let mkdir_posix dir = ["mkdir"; "-p"; dir]
-  let mkdir = if Sys.win32 then mkdir_win32 else mkdir_posix
-  let create dir = Result.map_error snd @@ cmd_run (mkdir dir)
+  let mkdir_p dir =
+    let rec loop dir =
+      if not (Sys.file_exists dir) then
+        (loop (Filename.dirname dir); Sys.mkdir dir 0o644)
+    in
+    match loop dir with
+    | () -> Ok ()
+    | exception Sys_error s -> Error s
+
+  let create dir = mkdir_p dir
 
   let exists dir =
     Result.catch_sys_error @@ fun () ->
@@ -385,8 +391,9 @@ module Tty = struct
   (* Terminal capabilities *)
 
   type cap = [ `None | `Ansi ]
-  let find_cap () = match Sys.getenv "TERM" with
-  | exception Not_found -> `None | "dumb" | "" -> `None | _ -> `Ansi
+  let find_cap () =
+    if Sys.win32 then `Ansi else match Sys.getenv "TERM" with
+    | exception Not_found -> `None | "dumb" | "" -> `None | _ -> `Ansi
 
   let cap = find_cap ()
 
