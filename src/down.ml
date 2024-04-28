@@ -618,7 +618,9 @@ module Prompt = struct
     | false -> acc
     in
     let ui = String.concat "" (List.rev acc) in
+    p.output Tty.cursor_hide;
     clear_ui p; p.output ui;
+    p.output Tty.cursor_show;
     if active then (p.last_cr <- cr; p.last_max_r <- max_r)
 
   let render_id_complete p prefix candidates =
