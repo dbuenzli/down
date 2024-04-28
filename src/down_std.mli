@@ -294,6 +294,12 @@ module Tty : sig
   val cursor_forward : int -> string
   (** [cursor_forward n] moves cursor by [n] columns. *)
 
+  val cursor_hide : string
+  (** [cursor_hide] hides the cursor. *)
+
+  val cursor_show : string
+  (** [cursor_show] shows the cursor. *)
+
   val cursor_origin : string
   (** [cursor_origin] moves cursor to the top-left origin. *)
 

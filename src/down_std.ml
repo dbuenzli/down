@@ -439,6 +439,8 @@ module Tty = struct
   let cursor_forward n =
     if n = 0 then "" else String.concat "" ["\x1B["; string_of_int n; "C"]
 
+  let cursor_hide = "\x1B[?25l"
+  let cursor_show = "\x1B[?25h"
   let cursor_origin = "\x1B[H"
   let clear_screen = "\x1B[2J"
 
