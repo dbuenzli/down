@@ -243,6 +243,8 @@ end
 
 (* OS interaction *)
 
+external set_raw_mode : bool -> bool = "ocaml_down_stdin_set_raw_mode"
+
 let cmd_run ?stdout ?stderr cmd =
   let err exit cmd = Error (exit, strf "exited with %d: %s\n" exit cmd) in
   let line ?stdout ?stderr cmd =
@@ -255,7 +257,12 @@ let cmd_run ?stdout ?stderr cmd =
     strf "%s%s%s%s%s" win_quote cmd stdout stderr win_quote
   in
   let line = line ?stdout ?stderr cmd in
-  let exit = Sys.command line in
+  let exit =
+    if Sys.win32 then ignore (set_raw_mode false);
+    let n = Sys.command line in
+    if Sys.win32 then ignore (set_raw_mode true);
+    n
+  in
   if exit = 0 then Ok () else err exit line
 
 module Env = struct
@@ -651,7 +658,7 @@ module Tty = struct
 end
 
 module Stdin = struct
-  external set_raw_mode : bool -> bool = "ocaml_down_stdin_set_raw_mode"
+  let set_raw_mode = set_raw_mode
   external readc : unit -> int = "ocaml_down_stdin_readc"
   let readc () = match readc () with
   | -1 | -2 -> None | -3 -> raise (Sys_error "stdin read error") | n -> Some n

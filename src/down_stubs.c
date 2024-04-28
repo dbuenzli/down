@@ -19,7 +19,7 @@ static HANDLE hError = INVALID_HANDLE_VALUE;
 CAMLprim value ocaml_down_stdin_set_raw_mode (value set_raw)
 {
   static DWORD hOrigInputMode, hOrigOutputMode, hOrigErrorMode;
-  static bool is_raw = FALSE;
+  static BOOL is_raw = FALSE;
   DWORD hRawInputMode = ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_WINDOW_INPUT;
   DWORD hRawOutputMode = ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
@@ -50,9 +50,9 @@ CAMLprim value ocaml_down_stdin_set_raw_mode (value set_raw)
     }
   } else {
     if (is_raw) {
-      if (SetConsoleMode(hInput, hOrigInputMode | hRawInputMode) == 0 ||
-          SetConsoleMode(hOutput, hOrigOutputMode | hRawOutputMode) == 0 ||
-          SetConsoleMode(hInput, hOrigErrorMode | hRawOutputMode) == 0) {
+      if (SetConsoleMode(hInput, hOrigInputMode) == 0 ||
+          SetConsoleMode(hOutput, hOrigOutputMode) == 0 ||
+          SetConsoleMode(hInput, hOrigErrorMode) == 0) {
         return Val_bool(0);
       }
 
