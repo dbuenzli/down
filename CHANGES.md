@@ -1,3 +1,9 @@
+v0.3.0 2024-04-29 La Forclaz (VS)
+---------------------------------
+
+- Windows support (#34, #35). Thanks to Nicolás Ojeda Bär for
+  the report and the work.
+
 v0.2.0 2024-03-29 La Forclaz (VS)
 ---------------------------------
 
