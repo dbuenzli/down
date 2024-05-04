@@ -1,3 +1,8 @@
+
+- Fix incorrect permission when creating directories (#36,
+  v0.3.0 regression). Thanks to Juneyoung Lee for the report
+  and Nicolás Ojeda Bär for the analysis.
+
 v0.3.0 2024-04-29 La Forclaz (VS)
 ---------------------------------
 

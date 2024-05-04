@@ -284,7 +284,7 @@ module Dir = struct
   let mkdir_p dir =
     let rec loop dir =
       if not (Sys.file_exists dir) then
-        (loop (Filename.dirname dir); Sys.mkdir dir 0o644)
+        (loop (Filename.dirname dir); Sys.mkdir dir 0o755)
     in
     match loop dir with
     | () -> Ok ()
