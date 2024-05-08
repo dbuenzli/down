@@ -3,4 +3,4 @@
    SPDX-License-Identifier: ISC
   ---------------------------------------------------------------------------*)
 
-let () = if !Sys.interactive then (Down.Private.set_top (module Opttoploop))
+let () = if !Sys.interactive then (Down.Private.set_top (module Toploop))
