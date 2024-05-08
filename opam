@@ -37,8 +37,4 @@ depends: [
 build: [
   "ocaml" "pkg/pkg.ml" "build" "--dev-pkg" "%{dev}%" "--lib-dir" "%{lib}%"
 ]
-install: [
-  ["install" "-d" "%{lib}%/ocaml/"]
-  ["install" "src/down.top" "%{lib}%/ocaml/"]
-]
 dev-repo: "git+https://erratique.ch/repos/down.git"

@@ -62,11 +62,6 @@ let default =
         "ocamlbuild", {|build|};
         "topkg", {|build & >= "1.0.3"|};
         "uucp", {|dev|}]
-    |> B0_meta.add B0_opam.install {|
-      # Following is only to deal with
-      # https://caml.inria.fr/mantis/view.php?id=7808
-      [["install" "-d" "%{lib}%/ocaml/"]
-       ["install" "src/down.top" "%{lib}%/ocaml/"]]|}
   in
   B0_pack.make "default" ~doc:"down package" ~meta ~locked:true @@
   [down_lib]
