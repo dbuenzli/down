@@ -5,31 +5,11 @@
 
 open Down_std
 
-(* Access toploop API functionality regardless of ocaml or ocamlnat.
-   Works around 4. in https://github.com/ocaml/ocaml/issues/7589 *)
-
-module type TOP = sig
-  val read_interactive_input : (string -> bytes -> int -> int * bool) ref
-  val use_file : Format.formatter -> string -> bool
-  val use_silently : Format.formatter -> Toploop.input -> bool
-end
-
-module Nil = struct
-  let nil () = invalid_arg "Down.Private.set_top not called"
-  let read_interactive_input = ref (fun _ _ _ -> nil ())
-  let use_file _ _ = nil ()
-  let use_silently _ _ = nil ()
-end
-
-(* Set to the right implementation by Down_top or Down_nattop *)
-let top : (module TOP) ref = ref (module Nil : TOP)
 let original_ocaml_readline = ref (fun _ _ _ -> assert false)
 
-let use_file ?(silent = false) file =
-  let module Top = (val !top : TOP) in
-  match silent with
-  | true -> Top.use_silently Format.std_formatter (Toploop.File file)
-  | false -> Top.use_file Format.std_formatter file
+let use_file ?(silent = false) file = match silent with
+| true -> Toploop.use_silently Format.std_formatter (Toploop.File file)
+| false -> Toploop.use_file Format.std_formatter file
 
 (* Logging and formatting styles *)
 
@@ -411,8 +391,7 @@ module Session = struct
   let add_if_recording s = if recording () then add_recorded s
   let recorded () = List.rev !record
   let record () =
-    let module Top = (val !top : TOP) in
-    match !Top.read_interactive_input == !original_ocaml_readline with
+    match !Toploop.read_interactive_input == !original_ocaml_readline with
     | true -> log_error "Sorry, recording needs Down's line edition."
     | false -> (* That could still not be down's readline but, unlikely *)
         if recording () then rem_last_recorded () else set_recording true
@@ -1013,30 +992,27 @@ let install_down () =
       | true -> ignore (Stdin.set_raw_mode false); Ok ()
   in
   let announce () = Fmt.pr "%a@." pp_announce () in
-  let module Top = (val !top : TOP) in
   History.load (); at_exit History.save;
   Session.load_unsaved_record (); at_exit Session.save_unsaved_record;
-  original_ocaml_readline := !Top.read_interactive_input;
+  original_ocaml_readline := !Toploop.read_interactive_input;
   match line_edition with
   | Ok () ->
       let id_complete = Ocp_index.id_complete in
       let id_info = Ocp_index.id_info in
       let p = Prompt.create ~id_complete ~id_info ~readc:Stdin.readc () in
-      Top.read_interactive_input := down_readline p;
+      Toploop.read_interactive_input := down_readline p;
       install_sigwinch_interrupt ();
       Stdin.enable_bracketed_paste stdout;
       announce ()
   | Error err ->
       announce (); log_warning "Down line edition disabled: %s" err
 
+let () = if !Sys.interactive then install_down ()
+
 (* Private *)
 
 module Private = struct
-  module type TOP = TOP
-  let set_top t = top := t; install_down ()
-
   let unicode_version = Down_tty_width.unicode_version
-
   let tty_test () = match Tty.cap with
   | `None -> print_endline err_no_ansi
   | `Ansi ->

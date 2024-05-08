@@ -5,5 +5,5 @@ true : bin_annot, safe_string
 <test> : include
 <test/**> : use_down_stubs
 <src/down.{cma,cmxa}> : record_down_stubs
-<src/down_nattop.cmxs> : link_down_stubs
+<src/down.cmxs> : link_down_stubs
 <tty_width/**> : package(uucp)

@@ -107,17 +107,6 @@ val tty_no_faint : unit -> unit
     Do not use. This is an unstable API subject to change even between
     minor versions of the library. *)
 module Private : sig
-
-  (** OCaml Toplevel API *)
-  module type TOP = sig
-    val read_interactive_input : (string -> bytes -> int -> int * bool) ref
-    val use_file : Format.formatter -> string -> bool
-    val use_silently : Format.formatter -> Toploop.input -> bool
-  end
-
-  val set_top : (module TOP) -> unit
-  (** [set_top t] sets the implementation of the OCaml toplevel to [t]. *)
-
   val unicode_version : string
   (** [unicode_version] is the Unicode version on which the
       {!Uucp.Break.tty_width_hint} data used by down is based. *)

@@ -27,9 +27,6 @@ v}
 
 You can add this [#use] invocation to your [~/.ocamlinit] file.
 
-For [ocamlnat] you will likely have to invoke it with [-noinit] and
-you must [#use "down.nattop"].
-
 More in the {{!page-manual}manual}.
 
 {1:api API}

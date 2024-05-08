@@ -1,30 +1,9 @@
 opam-version: "2.0"
 name: "down"
-synopsis: """An OCaml toplevel (REPL) upgrade"""
-maintainer: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
-authors: ["The down programmers"]
-homepage: "https://erratique.ch/software/down"
-doc: "https://erratique.ch/software/down/doc/"
-dev-repo: "git+https://erratique.ch/repos/down.git"
-bug-reports: "https://github.com/dbuenzli/down/issues"
-license: ["ISC"]
-tags: ["dev" "toplevel" "repl" "org:erratique"]
-depends: ["ocaml" {>= "4.14.0"}
-          "ocamlfind" {build}
-          "ocamlbuild" {build}
-          "topkg" {build & >= "1.0.3"}
-          "uucp" {dev}]
-build: [["ocaml" "pkg/pkg.ml" "build"
-         "--dev-pkg" "%{dev}%"
-         "--lib-dir" "%{lib}%"]]
-install:
-      # Following is only to deal with
-      # https://caml.inria.fr/mantis/view.php?id=7808
-      [["install" "-d" "%{lib}%/ocaml/"]
-       ["install" "src/down.top" "src/down.nattop" "%{lib}%/ocaml/"]]
-description: """
+synopsis: "An OCaml toplevel (REPL) upgrade"
+description: """\
 Down is an unintrusive user experience upgrade for the `ocaml`
-toplevel (REPL).
+toplevel (REPL). 
 
 Simply load the zero dependency `Down` library in the `ocaml` toplevel
 and you get line edition, history, session support and identifier
@@ -41,3 +20,25 @@ Down is distributed under the ISC license.
 Homepage: http://erratique.ch/software/down
 
 [ocp-index]: https://github.com/OCamlPro/ocp-index"""
+maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
+authors: "The down programmers"
+license: "ISC"
+tags: ["dev" "toplevel" "repl" "org:erratique"]
+homepage: "https://erratique.ch/software/down"
+doc: "https://erratique.ch/software/down/doc/"
+bug-reports: "https://github.com/dbuenzli/down/issues"
+depends: [
+  "ocaml" {>= "4.14.0"}
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+  "topkg" {build & >= "1.0.3"}
+  "uucp" {dev}
+]
+build: [
+  "ocaml" "pkg/pkg.ml" "build" "--dev-pkg" "%{dev}%" "--lib-dir" "%{lib}%"
+]
+install: [
+  ["install" "-d" "%{lib}%/ocaml/"]
+  ["install" "src/down.top" "%{lib}%/ocaml/"]
+]
+dev-repo: "git+https://erratique.ch/repos/down.git"

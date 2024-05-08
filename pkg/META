@@ -1,18 +1,7 @@
 description = "An OCaml toplevel upgrade"
 version = "%%VERSION_NUM%%"
-requires = ""
+requires = "" # It's important not to have compiler-libs here.
 archive(byte) = "down.cma"
 archive(native) = "down.cmxa"
 plugin(byte) = "down.cma"
 plugin(native) = "down.cmxs"
-
-package "nattop" (
- version = "%%VERSION_NUM%%"
- description = "Down ocamlnat support"
- requires = ""
- archive(byte) = "down_nattop.cma"
- archive(native) = "down_nattop.cmxa"
- plugin(byte) = "down_nattop.cma"
- plugin(native) = "down_nattop.cmxs"
- exists_if = "down_nattop.cma"
-)

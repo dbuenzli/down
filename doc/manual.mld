@@ -8,7 +8,7 @@ toplevel (REPL).
 To use Down in [ocaml] simply issue this phrase:
 
 {[
-# #use "down.top"   (* or "down.nattop" in ocamlnat *)
+# #use "down.top"
 ]}
 
 You can add this line to your [~/.ocamlinit] file.

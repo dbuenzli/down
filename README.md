@@ -47,10 +47,6 @@ Down loaded. Type Down.help () for more info.
 
 You can add this `#use "down.top"` invocation to your `~/.ocamlinit` file.
 
-For `ocamlnat` you will likely have to invoke it with `-noinit` and you
-must issue `#use "down.nattop"`.
-
-
 ## Documentation
 
 The manual can be consulted [online][doc] or via `odig doc down`.

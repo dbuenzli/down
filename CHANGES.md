@@ -1,4 +1,12 @@
 
+- Restore (and improve) support for `ocamlnat`.  It's now possible to
+  use `#use "down.top"` regardless. So if you don't have fancy stuff
+  in your `.config/ocaml/init.ml` it will work equally with `ocaml`
+  and `ocamlnat`. 
+  
+  Incidentally we no longer need to detect the presence of `ocamlnat`
+  which solves #33 (Thanks to Jacques-Henri Jourdan for the report).
+  
 - Fix incorrect permission when creating directories (#36,
   v0.3.0 regression). Thanks to Juneyoung Lee for the report
   and Nicolás Ojeda Bär for the analysis.

@@ -5,7 +5,10 @@
   ---------------------------------------------------------------------------*)
 
 #directory "%%LIBDIR%%/down";;
-#load "down.cma";;
+
+let () =
+  let down = if Sys.backend_type = Native then "down.cmxs" else "down.cma" in
+  Topdirs.dir_load Format.err_formatter down
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2019 The down programmers
