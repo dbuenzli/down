@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2019 The down programmers. All rights reserved.
    SPDX-License-Identifier: ISC
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 let next_uchar u = if Uchar.equal u Uchar.max then None else Some (Uchar.succ u)

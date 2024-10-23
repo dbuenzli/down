@@ -1,8 +1,7 @@
 /*---------------------------------------------------------------------------
    Copyright (c) 2019 The down programmers. All rights reserved.
-   SPDX-License-Identifier: ISCe.
-   %%NAME%% release %%VERSION%%
-   --------------------------------------------------------------------------*/
+   SPDX-License-Identifier: ISC
+  ---------------------------------------------------------------------------*/
 
 #include <stdbool.h>
 #include <caml/mlvalues.h>
