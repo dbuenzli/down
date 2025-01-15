@@ -14,7 +14,7 @@ let lib_dir =
 let top_config c = match Conf.build_context c with
 | `Dev -> Ok ()
 | `Pin | `Distrib ->
-    let lib_dir = Conf.value c lib_dir in
+    let lib_dir = String.escaped (Conf.value c lib_dir) in
     let subst_lib_dir file =
       OS.File.read file >>= fun contents ->
       OS.File.write_subst file ["LIBDIR", lib_dir] contents
