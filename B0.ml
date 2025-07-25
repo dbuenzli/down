@@ -60,7 +60,7 @@ let default =
       [ "ocaml", {|>= "4.14.0"|};
         "ocamlfind", {|build|};
         "ocamlbuild", {|build|};
-        "topkg", {|build & >= "1.0.3"|};
+        "topkg", {|build & >= "1.1.0"|};
         "uucp", {|dev|}]
     |> B0_meta.add B0_opam.install {|
       # Following is only to deal with
