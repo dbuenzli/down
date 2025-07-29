@@ -1,4 +1,5 @@
-- Update TTY width data to Unicode 16.0.0
+v0.4.0 2025-07-29 Zagreb
+------------------------
 
 - Restore (and improve) support for `ocamlnat`.  It's now possible to
   use `#use "down.top"` regardless. So if you don't have fancy stuff
@@ -10,12 +11,18 @@
 
 - opam packaging: no longer install `down.top` in `ocaml`'s library
   directoy. `OCAML_TOPLEVEL_PATH` is supported since 4.08 and `opam
-  env` sets it correctly so the version we install the `toplevel`
-  library directory should be enough.
+  env` now sets it correctly. With that the file we install the
+  `toplevel` library directory should be enough for `#use "down.top"`
+  to work.
 
-- Fix incorrect permission when creating directories (#36,
-  v0.3.0 regression). Thanks to Juneyoung Lee for the report
-  and Nicolás Ojeda Bär for the analysis.
+- Fix incorrect permission when creating directories (#36, v0.3.0
+  regression). Thanks to Juneyoung Lee for the report and Nicolás
+  Ojeda Bär for the analysis.
+
+- Escape `%%LIBDIR%%` substitution in order to deal with spaces (#38,
+  #41). Thanks to Nicolás Ojeda Bär and Antonin Décimo for reporting.
+
+- Update TTY width data to Unicode 16.0.0
 
 v0.3.0 2024-04-29 La Forclaz (VS)
 ---------------------------------

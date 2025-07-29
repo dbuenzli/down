@@ -38,3 +38,4 @@ build: [
   "ocaml" "pkg/pkg.ml" "build" "--dev-pkg" "%{dev}%" "--lib-dir" "%{lib}%"
 ]
 dev-repo: "git+https://erratique.ch/repos/down.git"
+x-maintenance-intent: ["(latest)"]

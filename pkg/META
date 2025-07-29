@@ -1,7 +1,8 @@
-description = "An OCaml toplevel upgrade"
+description = "An OCaml toplevel (REPL) upgrade"
 version = "%%VERSION_NUM%%"
 requires = "" # It's important not to have compiler-libs here.
 archive(byte) = "down.cma"
 archive(native) = "down.cmxa"
 plugin(byte) = "down.cma"
 plugin(native) = "down.cmxs"
+exists_if = "down.cma down.cmxa"
