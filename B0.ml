@@ -5,6 +5,7 @@ open Result.Syntax
 
 let down = B0_ocaml.libname "down"
 let uucp = B0_ocaml.libname "uucp"
+let unix = B0_ocaml.libname "unix"
 let compiler_libs_toplevel = B0_ocaml.libname "compiler-libs.toplevel"
 
 (* Down libraries *)
@@ -19,7 +20,7 @@ let down_lib =
 
 let tty_width_gen =
   let doc = "Generate OCaml source for TTY width data" in
-  let requires = [uucp] in
+  let requires = [unix; uucp] in
   let srcs = [ `File ~/"tty_width/gen.ml"] in
   B0_ocaml.exe "tty-width-gen" ~doc ~requires ~srcs
 

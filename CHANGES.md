@@ -1,4 +1,6 @@
 
+- Update TTY width data to Unicode 16.0.0
+
 - Restore (and improve) support for `ocamlnat`.  It's now possible to
   use `#use "down.top"` regardless. So if you don't have fancy stuff
   in your `.config/ocaml/init.ml` it will work equally with `ocaml`
