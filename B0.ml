@@ -30,7 +30,7 @@ let tty_width_test =
   in
   let doc = "Test generated TTY width data" in
   let requires = [uucp] in
-  let srcs = (`File (Fpath.v "tty_width/test.ml")) :: down_tty_width_srcs in
+  let srcs = (`File (Filepath.v "tty_width/test.ml")) :: down_tty_width_srcs in
   B0_ocaml.exe "tty-width-test" ~doc ~requires ~srcs
 
 (* Packs *)
